@@ -1,0 +1,23 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: apps
+spec:
+  ports:
+#  - name: ssh
+#    port: 22
+  - name: web
+    port: 80
+  - name: z3950
+    port: 210
+  - name: ssl
+    port: 443
+  - name: wbsc
+    port: 7680
+  - name: wbsc2
+    port: 7682
+  - name: sip
+    port: 6001
+  selector:
+    role: apps
+  type: LoadBalancer

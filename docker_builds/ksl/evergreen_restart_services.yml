@@ -1,0 +1,245 @@
+---
+
+- hosts: '{{hosts}}'
+  connection: local
+  remote_user: user
+  become_method: sudo
+  vars_files:
+    - 16.04_master_cloud.yml
+  tasks:
+  - name: Setup host file
+    become: true
+    shell: cp /egconfigs/hosts /etc/hosts
+    ignore_errors: yes
+  - name: Ensure ejabberd private/public networks are accounted for in hosts file
+    become: true
+    shell: echo 127.0.1.2       public.localhost        public >> /etc/hosts
+  - name: Ensure ejabberd private/public networks are accounted for in hosts file
+    become: true
+    shell: echo 127.0.1.3       private.localhost       private >> /etc/hosts
+  - name: Add local IP to hosts
+    become: true
+    shell: echo {{ansible_all_ipv4_addresses.0}} {{ansible_fqdn}} {{ansible_hostname}} >> /etc/hosts
+  - name: Add local IP to hosts
+    become: true
+    shell: echo {{ansible_all_ipv4_addresses.0}} {{ansible_fqdn}} {{ansible_hostname}} >> /etc/hosts
+  - name: starting ssh
+    service:
+      name: ssh
+      state: started
+  - name: stopping syslog-ng
+    ignore_errors: yes
+    service:
+      name: syslog-ng
+      state: stopped
+  - name: starting syslog-ng
+    ignore_errors: yes
+    service:
+      name: syslog-ng
+      state: started
+  - name: Set Timezone Environment Var
+    become: true
+    lineinfile: "dest=/root/.bashrc state=present line='export TZ=America/Chicago'"
+    lineinfile: "dest=/home/opensrf/.bashrc state=present line='export TZ=America/Chicago'"
+    lineinfile: "dest=/home/user/.bashrc state=present line='export TZ=America/Chicago'"
+  - stat: path=/egconfigs/logrotate_evergreen.txt
+    register: logrotate_template
+  - name: Setup Logrotate for opensrf logs
+    when: logrotate_template.stat.isdir is defined
+    ignore_errors: yes
+    become: true
+    shell: cp /egconfigs/logrotate_evergreen.txt /etc/logrotate.d/evergreen
+  - name: Editing evergreen logrotate for opensrf logs
+    when: logrotate_template.stat.isdir is defined
+    ignore_errors: yes
+    become: true
+    lineinfile: "dest=/etc/logrotate.d/evergreen state=present regexp='replacemewith_path_and_curly_brace' line='/{{openils_path}}/var/log/*.log {'"
+  - user: name=user groups=sudo
+  - lineinfile: "dest=/etc/sudoers state=present regexp='^%sudo' line='%sudo ALL=(ALL) NOPASSWD: ALL'"
+  - file: path=/root/ejabberd.yml state=absent
+## ejabberd remove and reinstall to get fresh database for current brick name
+  - name: Stopping ejabberd
+    service:
+      name: ejabberd
+      state: stopped
+  - name: Kill ejabberd
+    ignore_errors: yes
+    shell: "/bin/ps -ef | /bin/grep ejabber | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9"
+  - name: Delete ejabberd
+    become: true    
+    shell: updatedb && cp /etc/ejabberd/ejabberd.yml ~/ && apt-get -y --purge remove ejabberd && locate ejabberd|xargs rm -Rf
+  - name: Install ejabberd fresh
+    become: true    
+    shell: apt-get -y install ejabberd && cp /root/ejabberd.yml /etc/ejabberd/ejabberd.yml && cp /root/ejabberd.yml /egconfigs
+  - name: Kill ejabberd
+    ignore_errors: yes
+    shell: "/bin/ps -ef | /bin/grep ejabber | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9"
+  - name: Starting ejabberd
+    service:
+      name: ejabberd
+      state: started
+  - name: Pausing for ejabberd
+    pause: seconds=2
+  - name: Setup ejabberd users
+    become: true
+    shell: ejabberdctl unregister router private.localhost && ejabberdctl unregister opensrf private.localhost && ejabberdctl unregister router public.localhost && ejabberdctl unregister opensrf public.localhost 
+  - name: Setup ejabberd users
+    become: true
+    shell: ejabberdctl register router private.localhost {{ejabberd_password}} && ejabberdctl register opensrf private.localhost {{ejabberd_password}} && ejabberdctl register router public.localhost {{ejabberd_password}} && ejabberdctl register opensrf public.localhost {{ejabberd_password}}
+## Evergreen services restart
+  - name: Disable the default apache sites
+    become: true
+    ignore_errors: yes
+    shell: /usr/sbin/a2dissite default-ssl && /usr/sbin/a2dissite 000-default
+  - name: Stop Web services
+    become: true
+    service:
+      name: apache2
+      state: stopped
+  - name: Stop Websockets services
+    become: true
+    service:
+      name: apache2-websockets
+      state: stopped
+  - name: Stop OpenSRF
+    become: true
+    become_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/osrf_control --localhost --stop-all
+  - name: Stop SIP
+    become: true
+    become_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/oils_ctl.sh -a stop_sip
+  - name: Kill OpenSRF
+    ignore_errors: yes
+    shell: "/bin/ps -ef | /bin/grep OpenSRF | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9"
+  - name: Stopping ejabberd
+    service:
+      name: ejabberd
+      state: stopped
+  - name: Kill ejabberd
+    ignore_errors: yes
+    shell: "/bin/ps -ef | /bin/grep ejabber | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9"
+  - name: Kill Clark
+    ignore_errors: yes
+    shell: /bin/ps -ef | /bin/grep Clark | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9
+  - name: Kill webrick
+    ignore_errors: yes
+    shell: /bin/ps -ef | /bin/grep edi_webrick.rb | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9
+  - name: Kill SIP
+    ignore_errors: yes
+    shell: /bin/ps -ef | /bin/grep -i sip | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9
+  - name: Starting ejabberd
+    service:
+      name: ejabberd
+      state: started
+  - name: Pausing for ejabberd
+    pause: seconds=2
+  - name: Setup external domain name in hosts
+    become: true
+    shell: echo {{ansible_all_ipv4_addresses.0}} {{domain_name}} >> /etc/hosts
+  - name: Sync up the {{openils_path}} directories
+    become: true
+    shell: "{{ sync_openils_sub_folders_cmd }}"
+  - name: Start OpenSRF
+    become: true
+    become_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/osrf_control --localhost --start-all
+  - name: Pausing for OpenSRF to spawn Drones
+    pause: seconds=5
+  - name: Run autogen
+    become: true
+    become_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell:  export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/autogen.sh -u
+  - name: Setup Lets encrypt folder link
+    become: true
+    shell: cd {{openils_path}}/var/web && ln -sf {{lets_encrypt_shared_web_folder}} .well-known && chown -R opensrf:opensrf {{openils_path}}
+  - name: Setup shared reports folder link
+    become: true
+    shell: cd {{openils_path}}/var/web && ln -sf {{shared_reports_folder}} reporter && chown -R opensrf:opensrf {{openils_path}}
+  - name: Setup circ_notices link
+    become: true
+    shell: cd {{openils_path}}/var/web && ln -sf {{shared_circ_notices_folder}} circ_notices && chown -R opensrf:opensrf {{openils_path}}
+  - name: Copy fm_IDL
+    become: true
+    shell: cp {{ openils_path }}/conf/fm_IDL.xml {{ openils_path }}/var/web/reports/fm_IDL.xml
+  - name: Start Web services
+    become: true
+    service:
+      name: apache2
+      state: started
+  - name: Start Websockets services
+    become: true
+    command: /etc/init.d/apache2-websockets start
+    register: command_result
+    failed_when: "'fail' in command_result.stdout"
+  - name: Start SIP
+    become: true
+    become_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: "{{openils_path}}/bin/oils_ctl.sh -a start_sip"
+  - name: Putting ping.txt back in rotation
+    become: true
+    ignore_errors: yes
+    shell: mv /root/ping.txt {{openils_path}}/var/web/ping.txt
+#### UTILITY services only
+  - name: Remove Reporter Lock File
+    become: true
+    file: path=/tmp/reporter-LOCK state=absent
+    when: ansible_hostname == "ksl-db1"
+  - name: Start EDI Webbrick on utility
+    remote_user: opensrf
+    when: ansible_hostname == "ksl-db1"
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: "cd {{openils_path}}/var/edi/edi_translator && ./edi_webrick.bash"
+  - name: Start Clark Kent
+    remote_user: opensrf
+    when: ansible_hostname == "ksl-db1"
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: "{{openils_path}}/bin/clark-kent.pl -d -c 4"
+
+## Compile staff client
+  - name: Install nsis
+    apt: name=nsis
+  - name: Install zip
+    apt: name=zip
+  - name: Remove xul/server links
+    become: true
+    shell: rm {{openils_path}}/var/web/xul/server
+  - name: Compile xul staff client
+    become: true
+    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/xul/staff_client && make clean && make AUTOUPDATE_HOST={{domain_name}} STAFF_CLIENT_STAMP_ID={{evergreen_stamp_id}} STAFF_CLIENT_BUILD_ID={{evergreen_stamp_id}} rigrelease install && make updates-client
+  - name: Setup Symlink {{openils_path}}/var/web/xul/server
+    become: true
+    shell: cd {{openils_path}}/var/web/xul && ln -sf {{evergreen_stamp_id}}/server server && chown -R opensrf:opensrf {{openils_path}}
+  - name: Make opensrf the owner
+    become: true
+    shell: chown -R opensrf:opensrf /home/opensrf/repos
+## Start z39.50
+  - name: Start z39.50 stuff
+    become: true
+    shell: /usr/bin/perl -w /usr/bin/simple2zoom -c {{openils_path}}/conf/dgo.conf -- -f {{openils_path}}/conf/xml2marc-yaz.cfg localhost:2210 catalog.library.ks.gov:210 -v all,sessiondetail,requestdetail,zoom,zoomdetails &
+  - name: Ensure the cron z3950kill is present
+    become: true
+    cron: name="kill z3950" minute="0" hour="2" job="ps aux | grep simple[2]zoom | awk '{print $2}' | xargs kill"  
+  - name: Ensure the cron restart is present
+    become: true
+    cron: name="restart z3950" minute="1" hour="2" job="/usr/bin/perl -w /usr/bin/simple2zoom -c {{openils_path}}/conf/dgo.conf -- -f {{openils_path}}/conf/xml2marc-yaz.cfg localhost:2210 catalog.library.ks.gov:210 -v all,sessiondetail,requestdetail,zoom,zoomdetails >> {{openils_path}}/var/log/z3950.log 2>&1"
+## Setup Sitemap generator
+  - name: Ensure the cron restart is present
+    cron: user="opensrf" name="Site Map Generator" minute="4" hour="4" job=". /etc/profile && cd {{openils_path}}/var/web && {{openils_path}}/bin/sitemap_generator --config-file {{openils_path}}/conf/opensrf.xml --lib-hostname http://catalog.library.ks.gov"
+  - name: Setup ping.txt
+    remote_user: opensrf
+    shell: echo pong > {{openils_path}}/var/web/ping.txt && chown opensrf:opensrf {{openils_path}}/var/web/ping.txt
+
+...
