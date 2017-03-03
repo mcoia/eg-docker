@@ -19,10 +19,7 @@
     shell: echo 127.0.1.3       private.localhost       private >> /etc/hosts
   - name: Add local IP to hosts
     become: true
-    shell: echo {{ansible_all_ipv4_addresses.0}} {{ansible_fqdn}} {{ansible_hostname}} >> /etc/hosts
-  - name: Add local IP to hosts
-    become: true
-    shell: echo {{ansible_all_ipv4_addresses.0}} {{ansible_fqdn}} {{ansible_hostname}} >> /etc/hosts
+    shell: echo {{ansible_all_ipv4_addresses.0}} {{ansible_fqdn}}.{{domain_name}} {{ansible_hostname}} >> /etc/hosts
   - name: starting ssh
     service:
       name: ssh
@@ -37,11 +34,28 @@
     service:
       name: syslog-ng
       state: started
-  - name: Set Timezone Environment Var
+  - name: Set Timezone Environment Var root
     become: true
     lineinfile: "dest=/root/.bashrc state=present line='export TZ=America/Chicago'"
+  - name: Set Timezone Environment Var opensrf
+    become: true
     lineinfile: "dest=/home/opensrf/.bashrc state=present line='export TZ=America/Chicago'"
+  - name: Set Timezone Environment Var user
+    become: true
     lineinfile: "dest=/home/user/.bashrc state=present line='export TZ=America/Chicago'"
+  - name: Set Timezone Environment Var for cron
+    become: true
+    lineinfile: "dest=/etc/crontab state=present line='TZ=America/Chicago' insertafter='PATH'"
+  - name: Set Timezone Environment Var for cron.conf
+    become: true
+    lineinfile: "dest=/etc/init/cron.conf state=present line='TZ=America/Chicago' insertbefore='expect'"
+  - name: Remove Timezone file
+    become: true
+    file: path=/etc/localtime state=absent
+  - name: Setup System Timezone
+    become: true
+    ignore_errors: yes
+    shell: ln -s /usr/share/zoneinfo/US/Central /etc/localtime
   - stat: path=/egconfigs/logrotate_evergreen.txt
     register: logrotate_template
   - name: Setup Logrotate for opensrf logs
@@ -53,7 +67,15 @@
     when: logrotate_template.stat.isdir is defined
     ignore_errors: yes
     become: true
-    lineinfile: "dest=/etc/logrotate.d/evergreen state=present regexp='replacemewith_path_and_curly_brace' line='/{{openils_path}}/var/log/*.log {'"
+    lineinfile: "dest=/etc/logrotate.d/evergreen state=present regexp='replacemewith_path_and_curly_brace' line='{{openils_path}}/var/log/*.log {'"
+  - name: Changing evergreen logrotate file permissions
+    when: logrotate_template.stat.isdir is defined
+    ignore_errors: yes
+    become: true
+    file: "path=/etc/logrotate.d/evergreen state=file mode=0644"
+  - name: Fix Logrotate configuration
+    become: true
+    lineinfile: "dest=/etc/logrotate.conf state=present regexp='^su root' line='su root adm'"
   - user: name=user groups=sudo
   - lineinfile: "dest=/etc/sudoers state=present regexp='^%sudo' line='%sudo ALL=(ALL) NOPASSWD: ALL'"
   - file: path=/root/ejabberd.yml state=absent
@@ -209,22 +231,23 @@
     shell: "{{openils_path}}/bin/clark-kent.pl -d -c 4"
 
 ## Compile staff client
-  - name: Install nsis
-    apt: name=nsis
-  - name: Install zip
-    apt: name=zip
-  - name: Remove xul/server links
-    become: true
-    shell: rm {{openils_path}}/var/web/xul/server
-  - name: Compile xul staff client
-    become: true
-    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/xul/staff_client && make clean && make AUTOUPDATE_HOST={{domain_name}} STAFF_CLIENT_STAMP_ID={{evergreen_stamp_id}} STAFF_CLIENT_BUILD_ID={{evergreen_stamp_id}} rigrelease install && make updates-client
-  - name: Setup Symlink {{openils_path}}/var/web/xul/server
-    become: true
-    shell: cd {{openils_path}}/var/web/xul && ln -sf {{evergreen_stamp_id}}/server server && chown -R opensrf:opensrf {{openils_path}}
-  - name: Make opensrf the owner
-    become: true
-    shell: chown -R opensrf:opensrf /home/opensrf/repos
+## This is slow, turning it off because it was done at docker compile time
+  # - name: Install nsis
+    # apt: name=nsis
+  # - name: Install zip
+    # apt: name=zip
+  # - name: Remove xul/server links
+    # become: true
+    # shell: rm {{openils_path}}/var/web/xul/server
+  # - name: Compile xul staff client
+    # become: true
+    # shell: cd /home/opensrf/repos/Evergreen/Open-ILS/xul/staff_client && make clean && make AUTOUPDATE_HOST={{domain_name}} STAFF_CLIENT_STAMP_ID={{evergreen_stamp_id}} STAFF_CLIENT_BUILD_ID={{evergreen_stamp_id}} rigrelease install && make updates-client
+  # - name: Setup Symlink {{openils_path}}/var/web/xul/server
+    # become: true
+    # shell: cd {{openils_path}}/var/web/xul && ln -sf {{evergreen_stamp_id}}/server server && chown -R opensrf:opensrf {{openils_path}}
+  # - name: Make opensrf the owner
+    # become: true
+    # shell: chown -R opensrf:opensrf /home/opensrf/repos
 ## Start z39.50
   - name: Start z39.50 stuff
     become: true
@@ -238,6 +261,12 @@
 ## Setup Sitemap generator
   - name: Ensure the cron restart is present
     cron: user="opensrf" name="Site Map Generator" minute="4" hour="4" job=". /etc/profile && cd {{openils_path}}/var/web && {{openils_path}}/bin/sitemap_generator --config-file {{openils_path}}/conf/opensrf.xml --lib-hostname http://catalog.library.ks.gov"
+  - name: starting sendmail
+    shell: /etc/init.d/sendmail start
+  - name: restarting cron
+    service:
+      name: cron
+      state: restarted
   - name: Setup ping.txt
     remote_user: opensrf
     shell: echo pong > {{openils_path}}/var/web/ping.txt && chown opensrf:opensrf {{openils_path}}/var/web/ping.txt
