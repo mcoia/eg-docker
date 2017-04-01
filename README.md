@@ -1,19 +1,19 @@
 MOBIUS Evergreen Docker example set
 ===================================
 
-. Setup local docker. Customize docker_builds/ksl/16.04_master_cloud.yml
-. Customize hosts
-. Create a database server
-. docker build docker_builds/ksl/.
-. Debug errors, repeat
-. Setup gcloud SDK
-. Customize yaml files for your needs
-. kubectl create -f nfs-pv.yaml
-. kubectl create -f nfs-pvc.yaml
-. kubectl create -f create_apps_service.yml
-. kubectl create -f create_apps.yml
-. Refer to presentation
-link:slides.mobiusconsortium.org/blake/evergreengoogledocker/[Evergreen conference 2017 presentation]
+1.  Setup local docker. Customize docker_builds/ksl/16.04_master_cloud.yml
+2.  Customize hosts
+3.  Create a database server
+4.  docker build docker_builds/ksl/.
+5.  Debug errors, repeat
+6.  Setup gcloud SDK
+7.  Customize yaml files for your needs
+8.  kubectl create -f nfs-pv.yaml
+9.  kubectl create -f nfs-pvc.yaml
+10.  kubectl create -f create_apps_service.yml
+11.  kubectl create -f create_apps.yml
+12.  Refer to presentation
+[Evergreen conference 2017 presentation](http://slides.mobiusconsortium.org/blake/evergreengoogledocker/)
 
 
 Everything in this repository is open and free to use under the GNU.
