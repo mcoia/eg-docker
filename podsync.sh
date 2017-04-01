@@ -10,7 +10,7 @@ PROJECT_ID=evergreen-1470164758084
 
 $PATH_TO_GCLOUD container clusters get-credentials $DOCKER_CONTAINER_NAME --zone us-central1-c --project $PROJECT_ID
 
-INSTANCENUM=`$PATH_TO_GCLOUD compute instance-groups list|grep -v "INSTANCES" | awk '{print $5}'`
+INSTANCENUM=`$PATH_TO_GCLOUD compute instance-groups list|grep -v "INSTANCES" | awk '{print $6}'`
 
 echo PODNUM = $PODNUM
 echo INSTANCENUM = $INSTANCENUM
