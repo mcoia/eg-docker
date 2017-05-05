@@ -1,5 +1,5 @@
 ---
-  opensrf_git_branch: master
+  opensrf_git_branch: osrf_rel_2_5_0
   evergreen_git_branch: tags/rel_2_11_0
 # This directory will be linked to /openilspath/var/web/.well-known
   lets_encrypt_shared_web_folder: /mnt/evergreen/letsencrypt_shared_web_directory/.well-known
@@ -25,6 +25,8 @@
   opensrf_memcached_server: 10.128.0.2
   opensrf_memcached_port: 11211
   use_custom_opensrf_xml: yes
+  ssh_tunnel_user: pi
+  ssh_tunnel_auth_key: /egconfigs/auth_keys_tunnel
   Evergreen_cherry_picks: []
   OpenSRF_cherry_picks: []
   SIPServer_cherry_picks: []

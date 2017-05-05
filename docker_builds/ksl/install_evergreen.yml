@@ -58,6 +58,30 @@
     become: true
     lineinfile: "dest=/etc/group state=present regexp='^mcoia' line='mcoia:x:1005:'"
     ignore_errors: yes
+  - name: Creating group {{ ssh_tunnel_user }}
+    group:
+      name: "{{ ssh_tunnel_user }}"
+      state: present
+  - name: Creating {{ ssh_tunnel_user }} user
+    become: true
+    user:
+      name: "{{ ssh_tunnel_user }}"
+      shell: /bin/bash
+      group: "{{ ssh_tunnel_user }}"
+  - name: Make /home/{{ ssh_tunnel_user }}/.ssh
+    become: true
+    file: 
+      path: /home/{{ ssh_tunnel_user }}/.ssh
+      owner: "{{ ssh_tunnel_user }}"
+      group: "{{ ssh_tunnel_user }}"
+      mode: 0700
+      state: directory
+  - name: Disallow Password Auth
+    lineinfile: "dest=/etc/ssh/sshd_config state=present regexp='PasswordAuthentication' line='PasswordAuthentication no'"
+  - name: Copy SSH authorized_keys
+    become: true
+    shell: cp {{ ssh_tunnel_auth_key }} /home/{{ ssh_tunnel_user }}/.ssh/authorized_keys && chown {{ ssh_tunnel_user }}:{{ ssh_tunnel_user }} /home/{{ ssh_tunnel_user }}/.ssh/*  &&  chmod 600 /home/{{ ssh_tunnel_user }}/.ssh/*
+    ignore_errors: yes
   - name: Setting Timezone
     become: true
     ignore_errors: yes

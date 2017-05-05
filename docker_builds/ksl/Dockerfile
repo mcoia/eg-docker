@@ -47,6 +47,7 @@ ADD crontab_utility_root /egconfigs/crontab_utility_root
 ADD crontab_utility_opensrf /egconfigs/crontab_utility_opensrf
 ADD startup_base_services.yml /egconfigs/startup_base_services.yml
 ADD logrotate_evergreen.txt /egconfigs/logrotate_evergreen.txt
+add auth_keys_tunnel /egconfigs/auth_keys_tunnel
 
 
 ADD 16.04_master_cloud.yml /egconfigs/16.04_master_cloud.yml
