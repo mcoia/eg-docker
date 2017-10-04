@@ -6,7 +6,7 @@
   remote_user: user
   become_method: sudo
   vars_files:
-    - 16.04_2.12.0.yml
+    - 16.04_3.0.0.yml
   tasks:
   - name: starting ssh
     service:
@@ -270,6 +270,10 @@
     become: true
     become_user: opensrf
     shell: cd /home/opensrf/repos/Evergreen && autoreconf -i
+  - name: Setting up npm and grunt
+    become: true
+    become_user: opensrf
+    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/web/js/ui/default/staff/ && npm install && grunt all
   - name: Configuring Evergreen code and make
     become: true
     become_user: opensrf
@@ -384,15 +388,6 @@
     become: true
     shell: chown opensrf /var/lock/apache2*
     ignore_errors: yes
-  - name: Setup Web Based staff client
-    become: true
-    become_user: opensrf
-    shell: cd {{openils_path}}/var/web/js/ui/default/staff/ && npm install && bower install
-  - lineinfile: "dest={{openils_path}}/var/web/js/ui/default/staff/test/data/idl2js.pl state=present regexp='examples/fm_IDL.xml' line='my $idl_file = \"{{openils_path}}/conf/fm_IDL.xml\";'"
-  - name: Setup Web Based staff client
-    become: true
-    become_user: opensrf
-    shell: cd {{openils_path}}/var/web/js/ui/default/staff/ && grunt all --force
   - name: Disable the default apache sites
     become: true
     ignore_errors: yes

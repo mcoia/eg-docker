@@ -5,7 +5,7 @@
   remote_user: user
   become_method: sudo
   vars_files:
-    - 16.04_2.12.0.yml
+    - 16.04_3.0.0.yml
   tasks:
   - name: Setup host file
     become: true
@@ -58,7 +58,15 @@
     when: logrotate_template.stat.isdir is defined
     ignore_errors: yes
     become: true
-    lineinfile: "dest=/etc/logrotate.d/evergreen state=present regexp='replacemewith_path_and_curly_brace' line='/{{openils_path}}/var/log/*.log {'"
+    lineinfile: "dest=/etc/logrotate.d/evergreen state=present regexp='replacemewith_path_and_curly_brace' line='{{openils_path}}/var/log/*.log {'"
+  - name: Changing evergreen logrotate file permissions
+    when: logrotate_template.stat.isdir is defined
+    ignore_errors: yes
+    become: true
+    file: "path=/etc/logrotate.d/evergreen state=file mode=0644"
+  - name: Fix Logrotate configuration
+    become: true
+    lineinfile: "dest=/etc/logrotate.conf state=present regexp='^su root' line='su root adm'"
   - user: name=user groups=sudo
   - lineinfile: "dest=/etc/sudoers state=present regexp='^%sudo' line='%sudo ALL=(ALL) NOPASSWD: ALL'"
   - file: path=/root/ejabberd.yml state=absent
