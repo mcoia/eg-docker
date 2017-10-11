@@ -69,7 +69,7 @@ $hostsFile->truncFile($hostsfile);
 
 my $clusterlines = "";
 $clusterlines.=$_ foreach @clusterconfiglines;
-$clusterlines.="$clustername = $podNames\n";
+$clusterlines.="$clustername $podNames\n";
 print $clusterlines;
 $clusterconfig->truncFile($clusterlines);
 
