@@ -44,10 +44,6 @@
     ignore_errors: yes
   - name: Ensure User conformity
     become: true
-    lineinfile: "dest=/etc/group state=present regexp='^justin' line='justin:x:1001:'"
-    ignore_errors: yes
-  - name: Ensure User conformity
-    become: true
     lineinfile: "dest=/etc/group state=present regexp='^opensrf' line='opensrf:x:1002:'"
     ignore_errors: yes
   - name: Ensure User conformity
@@ -73,7 +69,7 @@
   - name: Chowning home directories
     become: true
     ignore_errors: yes
-    shell: chown -R user:user /home/user && chown -R evergreen:evergreen /home/evergreen && chown -R opensrf:opensrf /home/opensrf && chown -R ubuntu:ubuntu /home/ubuntu && chown -R mcoia:mcoia /home/mcoia && chown -R justin:justin /home/justin
+    shell: chown -R user:user /home/user && chown -R evergreen:evergreen /home/evergreen && chown -R opensrf:opensrf /home/opensrf && chown -R ubuntu:ubuntu /home/ubuntu && chown -R mcoia:mcoia /home/mcoia
   - name: Creating repo folder
     become_user: opensrf
     file: path=/home/opensrf/repos state=directory owner=opensrf group=opensrf mode=0775
