@@ -9,7 +9,7 @@
   ejabberd_password: ejabberdpassword
   os_user_password: password
   openils_path: /openils
-  evergreen_stamp_id: rel_3_0_3
+  evergreen_stamp_id: rel_3_2_0rc2
   domain_name: localhost
   database_host: 127.0.0.1
   database_database: evergreen
