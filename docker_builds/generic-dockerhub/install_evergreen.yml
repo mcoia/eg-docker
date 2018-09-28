@@ -6,7 +6,7 @@
   remote_user: user
   become_method: sudo
   vars_files:
-    - 16.04_3.2.0rc.yml
+    - 16.04_3.2.x.yml
   tasks:
   - name: starting ssh
     service:
