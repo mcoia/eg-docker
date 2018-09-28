@@ -18,6 +18,7 @@ RUN mkdir -p /mnt/evergreen
 
 # Run dockerbase script
 ADD     syslog-ng.sh /egconfigs/
+RUN     chmod +x /egconfigs/syslog-ng.sh
 RUN     /egconfigs/syslog-ng.sh
 
 # Add syslog-ng into runit
@@ -34,7 +35,7 @@ ADD hosts /egconfigs/hosts
 ADD ejabberd.yml /egconfigs/ejabberd.yml
 ADD logrotate_evergreen.txt /egconfigs/logrotate_evergreen.txt
 
-ADD 16.04_3.0.0.yml /egconfigs/16.04_3.0.0.yml
+ADD 16.04_3.2.0rc.yml /egconfigs/16.04_3.2.0rc.yml
 ADD install_evergreen.yml /egconfigs/install_evergreen.yml
 ADD evergreen_restart_services.yml /egconfigs/evergreen_restart_services.yml
 RUN cd /egconfigs && ansible-playbook install_evergreen.yml -v -e "hosts=127.0.0.1"
