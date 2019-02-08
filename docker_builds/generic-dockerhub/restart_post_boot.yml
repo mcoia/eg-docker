@@ -5,7 +5,7 @@
   remote_user: ma
   become_method: sudo
   vars_files:
-    - 16.04_2_12_7.yml
+    - 16.04_3.2.x.yml
   tasks:
   - name: Remove ping.txt file
     become: true
