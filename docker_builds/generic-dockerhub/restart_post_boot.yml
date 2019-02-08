@@ -65,7 +65,7 @@
 ### ## Start z39.50
   - name: Start z39.50 stuff
     become: true
-    shell: /usr/bin/perl -w /usr/bin/simple2zoom -c {{openils_path}}/conf/dgo.conf -- -f {{openils_path}}/conf/xml2marc-yaz.cfg localhost:2210 nccardinal.org:210 -v all,sessiondetail,requestdetail,zoom,zoomdetails &
+    shell: /usr/bin/perl -w /usr/bin/simple2zoom -c {{openils_path}}/conf/dgo.conf -- -f {{openils_path}}/conf/xml2marc-yaz.cfg localhost:2210 localhost.org:210 -v all,sessiondetail,requestdetail,zoom,zoomdetails &
   - name: restarting cron
     service:
       name: cron
