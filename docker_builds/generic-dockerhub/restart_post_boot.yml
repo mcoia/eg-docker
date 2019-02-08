@@ -1,0 +1,93 @@
+---
+
+- hosts: '{{hosts}}'
+  connection: local
+  remote_user: ma
+  become_method: sudo
+  vars_files:
+    - 16.04_2_12_7.yml
+  tasks:
+  - name: Remove ping.txt file
+    become: true
+    file: path="{{openils_path}}/var/web/ping.txt" state=absent
+  - name: Stop Web services
+    become: true
+    service:
+      name: apache2
+      state: stopped
+  - name: Kill z39.50
+    become: true
+    ignore_errors: yes
+    shell: ps aux | grep simple[2]zoom | awk '{print $2}' | xargs kill
+  - name: Stop Websockets services
+    become: true
+    service:
+      name: apache2-websockets
+      state: stopped
+  - name: Stop OpenSRF
+    become: true
+    become_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/osrf_control --localhost --stop-all
+  - name: Stop SIP
+    become: true
+    become_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/oils_ctl.sh -a stop_sip
+  - name: Kill OpenSRF
+    ignore_errors: yes
+    shell: "/bin/ps -ef | /bin/grep OpenSRF | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9"
+  - name: Kill SIP
+    ignore_errors: yes
+    shell: /bin/ps -ef | /bin/grep -i sip | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9
+  - name: Start OpenSRF
+    become: true
+    become_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/osrf_control --localhost --start-all
+  - name: Pausing for OpenSRF to spawn Drones
+    pause: seconds=5
+  - name: Run autogen
+    become: true
+    become_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell:  export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/autogen.sh
+  - name: Start SIP
+    become: true
+    become_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: "{{openils_path}}/bin/oils_ctl.sh -a start_sip"
+### ## Start z39.50
+  - name: Start z39.50 stuff
+    become: true
+    shell: /usr/bin/perl -w /usr/bin/simple2zoom -c {{openils_path}}/conf/dgo.conf -- -f {{openils_path}}/conf/xml2marc-yaz.cfg localhost:2210 nccardinal.org:210 -v all,sessiondetail,requestdetail,zoom,zoomdetails &
+  - name: restarting cron
+    service:
+      name: cron
+      state: restarted
+  - name: Start Web services
+    become: true
+    service:
+      name: apache2
+      state: started
+  - name: Start Websockets services
+    become: true
+    command: /etc/init.d/apache2-websockets start
+    register: command_result
+    failed_when: "'fail' in command_result.stdout"
+  - name: Setup ping.txt
+    remote_user: opensrf
+    shell: echo pong > {{openils_path}}/var/web/ping.txt && chown opensrf:opensrf {{openils_path}}/var/web/ping.txt
+  - name: Generate offline list
+    remote_user: opensrf
+    ignore_errors: yes
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: cp /mnt/evergreen/apps/openilsconf/list.txt {{openils_path}}/var/web/standalone/list.txt
+
+...
