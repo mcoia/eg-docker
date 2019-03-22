@@ -120,7 +120,7 @@
     become_user: opensrf
     environment:
       PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
-    shell: cd /home/opensrf/repos/OpenSRF && autoreconf -i && ./configure --prefix={{openils_path}} --sysconfdir={{openils_path}}/conf && make
+    shell: cd /home/opensrf/repos/OpenSRF && autoreconf -i && ./configure --prefix={{openils_path}} --sysconfdir={{openils_path}}/conf --with-websockets-port=443 && make
   - name: Make install OpenSRF
     become: true
     environment:
@@ -142,6 +142,9 @@
   - name: Put the ejabberd config into place
     become: true
     shell: cp /egconfigs/ejabberd.yml /etc/ejabberd/ejabberd.yml
+  - name: update /etc/ld.so.conf.d/opensrf.conf and ldconfig
+    become: true
+    shell: echo {{openils_path}}/lib > /etc/ld.so.conf.d/opensrf.conf && ldconfig
   - name: Kill ejabberd
     ignore_errors: yes
     shell: "/bin/ps -ef | /bin/grep ejabber | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9"
@@ -153,9 +156,11 @@
     pause: seconds=2
   - name: Setup ejabberd users
     become: true
+    become_user: ejabberd
     shell: ejabberdctl unregister router private.localhost && ejabberdctl unregister opensrf private.localhost && ejabberdctl unregister router public.localhost && ejabberdctl unregister opensrf public.localhost
   - name: Setup ejabberd users
     become: true
+    become_user: ejabberd
     shell: ejabberdctl register router private.localhost {{ejabberd_password}} && ejabberdctl register opensrf private.localhost {{ejabberd_password}} && ejabberdctl register router public.localhost {{ejabberd_password}} && ejabberdctl register opensrf public.localhost {{ejabberd_password}}
   - name: Copy example opensrf_core.xml
     become: true
@@ -313,6 +318,12 @@
   - lineinfile: "dest=/etc/apache2/mods-available/mpm_prefork.conf state=present regexp='MaxSpareServers' line='MaxSpareServers   15'"
   - lineinfile: dest=/etc/apache2/mods-available/mpm_prefork.conf state=present insertbefore='<\/IfModule>' line='MaxClients   150'
   - lineinfile: dest=/etc/apache2/mods-available/mpm_prefork.conf state=present insertbefore='<\/IfModule>' line='MaxRequestsPerChild   10000'
+
+  - lineinfile: "dest=/etc/apache2/eg_vhost.conf state=present regexp='OSRFTranslatorCacheServer' line='OSRFTranslatorCacheServer {{opensrf_memcached_server}}:{{opensrf_memcached_port}}'"
+  - lineinfile: "dest=/etc/apache2/eg_vhost.conf state=present regexp='RemoteIPInternalProxy 1' line='RemoteIPInternalProxy 127.0.0.1/24'"
+  - lineinfile: "dest=/etc/apache2/eg_vhost.conf state=present regexp='RemoteIPInternalProxy \\:' line='RemoteIPInternalProxy ::1'"
+  - lineinfile: "dest=/etc/apache2/eg_vhost.conf state=present regexp='RemoteIPHeader' line='RemoteIPHeader X-Real-IP'"
+
   - name: copy custom eg.conf (if exists)
     become: true
     ignore_errors: yes
@@ -321,7 +332,6 @@
     become: true
     ignore_errors: yes
     shell: cp /egconfigs/eg_vhost.conf /etc/apache2/eg_vhost.conf
-  - lineinfile: "dest=/etc/apache2/eg_vhost.conf state=present regexp='OSRFTranslatorCacheServer' line='OSRFTranslatorCacheServer {{opensrf_memcached_server}}:{{opensrf_memcached_port}}'"
   - name: Enable apache prefork module and evergreen default apache site
     become: true
     shell: /usr/sbin/a2dismod mpm_event && /usr/sbin/a2enmod mpm_prefork && /usr/sbin/a2ensite eg.conf && chown opensrf /var/lock/apache2
@@ -401,6 +411,32 @@
     shell: /usr/sbin/a2dissite default-ssl && /usr/sbin/a2dissite 000-default
   - lineinfile: "dest=/etc/apache2-websockets/apache2.conf state=present regexp='SSLCertificateFile' line='SSLCertificateFile /etc/apache2/ssl/server.crt'"
   - lineinfile: "dest=/etc/apache2-websockets/apache2.conf state=present regexp='SSLCertificateKeyFile' line='SSLCertificateKeyFile /etc/apache2/ssl/server.key'"
+
+## SETUP NGINX
+  - name: Install nginx for the WebSockets proxy
+    become: true
+    apt:
+      name: nginx
+  - stat: path=/etc/nginx/sites-available
+    register: nginxsites
+  - name: Copy example nginx config
+    become: true
+    shell: cp /home/opensrf/repos/OpenSRF/examples/nginx/osrf-ws-http-proxy /etc/nginx/sites-available/
+    when: nginxsites.stat.isdir is defined
+  - name: Setup nginx sites
+    become: true
+    shell: ln -s /etc/nginx/sites-available/osrf-ws-http-proxy /etc/nginx/sites-enabled/osrf-ws-http-proxy && rm /etc/nginx/sites-enabled/default
+  - name: Generate dhpararm file for nginx WebSockets proxy
+    become: true
+    shell: openssl dhparam -out /etc/apache2/ssl/dhparam.pem 2048
+  - lineinfile: dest=/etc/apache2/sites-enabled/eg.conf regexp="^<VirtualHost \*:443>" line="<VirtualHost *:7443>"
+  - lineinfile: dest=/etc/apache2/sites-enabled/eg.conf regexp="^<VirtualHost \*:80>" line="<VirtualHost *:7080>"
+  - lineinfile: dest=/etc/apache2/ports.conf state=present regexp="^Listen 80" line="Listen 7080"
+  - lineinfile: dest=/etc/apache2/ports.conf state=present regexp="Listen 443" line="        Listen 7443"
+  - lineinfile: dest=/etc/apache2/ports.conf state=present regexp="Listen 443" line="        Listen 7443"
+  - name: Enable apache remoteip module
+    become: true
+    shell: /usr/sbin/a2enmod remoteip
 
 ## Evergreen is installed
 

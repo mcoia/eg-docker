@@ -5,8 +5,6 @@ EXPOSE 80
 EXPOSE 210
 EXPOSE 443
 EXPOSE 6001
-EXPOSE 7680
-EXPOSE 7682
 
 RUN useradd user -m -s /bin/bash
 RUN useradd opensrf -m -s /bin/bash

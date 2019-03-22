@@ -95,9 +95,11 @@
     pause: seconds=2
   - name: Setup ejabberd users
     become: true
+    become_user: ejabberd
     shell: ejabberdctl unregister router private.localhost && ejabberdctl unregister opensrf private.localhost && ejabberdctl unregister router public.localhost && ejabberdctl unregister opensrf public.localhost 
   - name: Setup ejabberd users
     become: true
+    become_user: ejabberd
     shell: ejabberdctl register router private.localhost {{ejabberd_password}} && ejabberdctl register opensrf private.localhost {{ejabberd_password}} && ejabberdctl register router public.localhost {{ejabberd_password}} && ejabberdctl register opensrf public.localhost {{ejabberd_password}}
 ## Evergreen services restart
   - name: Disable the default apache sites
@@ -113,6 +115,11 @@
     become: true
     service:
       name: apache2-websockets
+      state: stopped
+  - name: Stop nginx Websockets proxy
+    become: true
+    service:
+      name: nginx
       state: stopped
   - name: Stop OpenSRF
     become: true
@@ -174,13 +181,13 @@
     shell:  export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/autogen.sh -u
   - name: Setup Lets encrypt folder link
     become: true
-    shell: cd {{openils_path}}/var/web && ln -sf {{lets_encrypt_shared_web_folder}} .well-known && chown -R opensrf:opensrf {{openils_path}}
+    shell: cd {{openils_path}}/var/web && ln -sf {{lets_encrypt_shared_web_folder}} .well-known
   - name: Setup shared reports folder link
     become: true
-    shell: cd {{openils_path}}/var/web && ln -sf {{shared_reports_folder}} reporter && chown -R opensrf:opensrf {{openils_path}}
+    shell: cd {{openils_path}}/var/web && ln -sf {{shared_reports_folder}} reporter
   - name: Setup circ_notices link
     become: true
-    shell: cd {{openils_path}}/var/web && ln -sf {{shared_circ_notices_folder}} circ_notices && chown -R opensrf:opensrf {{openils_path}}
+    shell: cd {{openils_path}}/var/web && ln -sf {{shared_circ_notices_folder}} circ_notices
   - name: Copy fm_IDL
     become: true
     shell: cp {{ openils_path }}/conf/fm_IDL.xml {{ openils_path }}/var/web/reports/fm_IDL.xml
@@ -194,6 +201,11 @@
     command: /etc/init.d/apache2-websockets start
     register: command_result
     failed_when: "'fail' in command_result.stdout"
+  - name: Start nginx Websockets proxy 
+    become: true
+    service:
+      name: nginx
+      state: started
   - name: copy the oils_sip.xml
     become: true
     shell: cp {{ openils_path }}/conf/oils_sip.xml.example {{ openils_path }}/conf/oils_sip.xml && chown opensrf:opensrf -R {{ openils_path }}
@@ -257,5 +269,8 @@
   - name: Setup ping.txt
     remote_user: opensrf
     shell: echo pong > {{openils_path}}/var/web/ping.txt && chown opensrf:opensrf {{openils_path}}/var/web/ping.txt
+  - name: chowning openils
+    become: true
+    shell: chown -R opensrf:opensrf {{openils_path}}
 
 ...
