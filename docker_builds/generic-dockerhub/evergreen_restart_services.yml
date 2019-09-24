@@ -111,11 +111,10 @@
     service:
       name: apache2
       state: stopped
-  - name: Stop Websockets services
+  - name: Stop Websocketd
     become: true
-    service:
-      name: apache2-websockets
-      state: stopped
+    ignore_errors: yes
+    shell: "/bin/ps -ef | /bin/grep osrf-websocket-stdio | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9"
   - name: Stop nginx Websockets proxy
     become: true
     service:
@@ -184,24 +183,49 @@
     shell: cd {{openils_path}}/var/web && ln -sf {{lets_encrypt_shared_web_folder}} .well-known
   - name: Setup shared reports folder link
     become: true
+    become_user: opensrf
     shell: cd {{openils_path}}/var/web && ln -sf {{shared_reports_folder}} reporter
   - name: Setup circ_notices link
     become: true
+    become_user: opensrf
     shell: cd {{openils_path}}/var/web && ln -sf {{shared_circ_notices_folder}} circ_notices
   - name: Copy fm_IDL
     become: true
+    become_user: opensrf
     shell: cp {{ openils_path }}/conf/fm_IDL.xml {{ openils_path }}/var/web/reports/fm_IDL.xml
   - name: Start Web services
     become: true
     service:
       name: apache2
       state: started
-  - name: Start Websockets services
+  - name: create websocketd start script
+    file:
+      path: /egconfigs/start_websocketd
+      state: touch
+      owner: root
+      group: root
+      mode: '0755'
+  - name: Building /egconfigs/start_websocketd
     become: true
-    command: /etc/init.d/apache2-websockets start
-    register: command_result
-    failed_when: "'fail' in command_result.stdout"
-  - name: Start nginx Websockets proxy 
+    lineinfile: 'dest=/egconfigs/start_websocketd state=present regexp="#!/bin/bas" line="#!/bin/bash"'
+  - name: Building /egconfigs/start_websocketd
+    become: true
+    lineinfile: 'dest=/egconfigs/start_websocketd state=present regexp="websocketd" line="/usr/local/bin/websocketd --loglevel error --port 7682 /openils/bin/osrf-websocket-stdio >& /dev/null &"'
+  - name: Starting websocketd
+    become: true
+    become_user: opensrf
+    shell: '/egconfigs/start_websocketd'
+## Using letsencrypt, therefore we are using symlinks
+  # - name: Concat the Certificates for nginx
+    # become: true
+    # shell: cat /etc/apache2/ssl/server.crt > /etc/apache2/ssl/nginx.crt
+  - name: Fix nginx certificate config
+    become: true
+    lineinfile: 'dest=/etc/nginx/sites-available/osrf-ws-http-proxy state=present regexp="ssl_certificate \/" line="ssl_certificate /etc/apache2/ssl/nginx.crt;"'
+  - name: Fix nginx certificate config
+    become: true
+    lineinfile: 'dest=/etc/nginx/sites-available/osrf-ws-http-proxy state=present regexp="ssl_certificate_key\s" line="ssl_certificate_key /etc/apache2/ssl/server.key;"'
+  - name: Start nginx Websockets proxy
     become: true
     service:
       name: nginx
