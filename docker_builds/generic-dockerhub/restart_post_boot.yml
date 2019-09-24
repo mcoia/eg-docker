@@ -19,11 +19,10 @@
     become: true
     ignore_errors: yes
     shell: ps aux | grep simple[2]zoom | awk '{print $2}' | xargs kill
-  - name: Stop Websockets services
+  - name: Stop Websocketd
     become: true
-    service:
-      name: apache2-websockets
-      state: stopped
+    ignore_errors: yes
+    shell: "/bin/ps -ef | /bin/grep osrf-websocket-stdio | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9"
   - name: Stop OpenSRF
     become: true
     become_user: opensrf
@@ -75,11 +74,15 @@
     service:
       name: apache2
       state: started
-  - name: Start Websockets services
+  - name: Starting websocketd
     become: true
-    command: /etc/init.d/apache2-websockets start
-    register: command_result
-    failed_when: "'fail' in command_result.stdout"
+    become_user: opensrf
+    shell: '/egconfigs/start_websocketd'
+  - name: Start nginx Websockets proxy
+    become: true
+    service:
+      name: nginx
+      state: started
   - name: Setup ping.txt
     remote_user: opensrf
     shell: echo pong > {{openils_path}}/var/web/ping.txt && chown opensrf:opensrf {{openils_path}}/var/web/ping.txt
