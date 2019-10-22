@@ -188,7 +188,7 @@
   - name: Setup circ_notices link
     become: true
     become_user: opensrf
-    shell: cd {{openils_path}}/var/web && ln -sf {{shared_circ_notices_folder}} circ_notices
+    shell: cd {{openils_path}}/var/web && ln -sf {{shared_circ_notices_folder}} notices
   - name: Copy fm_IDL
     become: true
     become_user: opensrf
@@ -215,10 +215,9 @@
     become: true
     become_user: opensrf
     shell: '/egconfigs/start_websocketd'
-## Using letsencrypt, therefore we are using symlinks
-  # - name: Concat the Certificates for nginx
-    # become: true
-    # shell: cat /etc/apache2/ssl/server.crt > /etc/apache2/ssl/nginx.crt
+  - name: Concat the Certificates for nginx
+    become: true
+    shell: cat /etc/apache2/ssl/server.crt > /etc/apache2/ssl/nginx.crt
   - name: Fix nginx certificate config
     become: true
     lineinfile: 'dest=/etc/nginx/sites-available/osrf-ws-http-proxy state=present regexp="ssl_certificate \/" line="ssl_certificate /etc/apache2/ssl/nginx.crt;"'

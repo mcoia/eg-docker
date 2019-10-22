@@ -1,6 +1,6 @@
 ---
-  opensrf_git_branch: osrf_rel_3_1_0
-  evergreen_git_branch: tags/rel_3_3_beta1
+  opensrf_git_branch: osrf_rel_3_2_0
+  evergreen_git_branch: tags/rel_3_4_0
 # This directory will be linked to /openilspath/var/web/.well-known
   lets_encrypt_shared_web_folder: /mnt/evergreen/letsencrypt_shared_web_directory/.well-known
   shared_reports_folder: /mnt/evergreen/reports
@@ -9,7 +9,7 @@
   ejabberd_password: ejabberdpassword
   os_user_password: password
   openils_path: /openils
-  evergreen_stamp_id: rel_3_3_beta1
+  evergreen_stamp_id: rel_3_4_0
   domain_name: localhost
   database_host: 127.0.0.1
   database_database: evergreen

@@ -232,15 +232,15 @@
     shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install postgres-server-ubuntu-xenial
   - name: Allow postgres to talk outside
     become: true
-    lineinfile: "dest=/etc/postgresql/9.5/main/pg_hba.conf state=present regexp='host    all     evergreen' line='host    all     evergreen       {{ansible_default_ipv4.network}}   {{ansible_default_ipv4.netmask}}      md5'"
+    lineinfile: "dest=/etc/postgresql/9.6/main/pg_hba.conf state=present regexp='host    all     evergreen' line='host    all     evergreen       {{ansible_default_ipv4.network}}   {{ansible_default_ipv4.netmask}}      md5'"
   - name: Setup postgresql.conf (if you have a custom file in /egconfigs)
     become: true
     ignore_errors: yes
-    shell: cp /egconfigs/postgresql.conf /etc/postgresql/9.5/main
+    shell: cp /egconfigs/postgresql.conf /etc/postgresql/9.6/main
   - name: Ensure that plperl is installed
     become: true
     ignore_errors: yes
-    shell: apt-get -y install postgresql-plperl-9.5
+    shell: apt-get -y install postgresql-plperl-9.6
   - name: Disable transparent_hugepages in grub
     become: true
     ignore_errors: yes
@@ -280,7 +280,7 @@
     shell: cd /home/opensrf/repos/Evergreen && PATH={{openils_path}}/bin:$PATH ./configure --prefix={{openils_path}} --sysconfdir={{openils_path}}/conf && make
   - name: Install Evergreen
     become: true
-    shell: cd /home/opensrf/repos/Evergreen && make install
+    shell: cd /home/opensrf/repos/Evergreen && make install && chown -R opensrf:opensrf {{openils_path}}
   - name: Dojoify
     become: true
     become_user: opensrf
@@ -393,11 +393,10 @@
     become: true
     ignore_errors: yes
     shell: /usr/sbin/a2dissite default-ssl && /usr/sbin/a2dissite 000-default
-  - lineinfile: "dest=/etc/apache2-websockets/apache2.conf state=present regexp='SSLCertificateFile' line='SSLCertificateFile /etc/apache2/ssl/server.crt'"
-  - lineinfile: "dest=/etc/apache2-websockets/apache2.conf state=present regexp='SSLCertificateKeyFile' line='SSLCertificateKeyFile /etc/apache2/ssl/server.key'"
 
 ## SETUP NGINX
-  - name: stopping apache2
+  - name: Stop Apache
+    become: true
     service:
       name: apache2
       state: stopped
