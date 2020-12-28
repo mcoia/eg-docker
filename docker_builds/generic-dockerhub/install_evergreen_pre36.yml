@@ -270,22 +270,10 @@
     become: true
     become_user: opensrf
     shell: cd /home/opensrf/repos/Evergreen/Open-ILS/web/js/ui/default/staff/ && npm install && npm run build-prod && npm run test
-    environment:
-      CHROME_BIN: /usr/bin/chromium-browser
-  - name: Setting up bootstrap opac
-    become: true
-    become_user: opensrf
-    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/web/opac/deps/ && npm install
-  - name: Opt out of Chrome eg2 testing
-    lineinfile:
-      dest: /home/opensrf/repos/Evergreen/Open-ILS/src/eg2/karma.conf.js
-      state: present
-      regexp: ChromeHeadless
-      line: "    browsers: ['FirefoxHeadless'],"
   - name: Setting up eg2
     become: true
     become_user: opensrf
-    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/src/eg2/ && npm install && ng build --prod && npm run test
+    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/src/eg2/ && npm install && npm run build --prod && npm run test
   - name: Configuring Evergreen code and make
     become: true
     become_user: opensrf

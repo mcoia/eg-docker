@@ -1,6 +1,6 @@
 ---
-  opensrf_git_branch: osrf_rel_3_2_0
-  evergreen_git_branch: tags/rel_3_4_0
+  opensrf_git_branch: osrf_rel_3_2_1
+  evergreen_git_branch: tags/rel_3_6_1
 # This directory will be linked to /openilspath/var/web/.well-known
   lets_encrypt_shared_web_folder: /mnt/evergreen/letsencrypt_shared_web_directory/.well-known
   shared_reports_folder: /mnt/evergreen/reports
