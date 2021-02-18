@@ -6,7 +6,7 @@
   remote_user: user
   become_method: sudo
   vars_files:
-    - 16.04_3.2.x.yml
+    - 18.04_3.6.yml
   tasks:
   - name: starting ssh
     service:
@@ -112,7 +112,7 @@
       state: present
   - name: Install OpenSRF prereqs
     become: true
-    shell: apt-get update && cd /home/opensrf/repos/OpenSRF && export PERL_MM_USE_DEFAULT=1 && autoreconf -i && make -f src/extras/Makefile.install ubuntu-xenial && chown opensrf:opensrf -R .
+    shell: apt-get update && cd /home/opensrf/repos/OpenSRF && export PERL_MM_USE_DEFAULT=1 && autoreconf -i && make -f src/extras/Makefile.install ubuntu-bionic && chown opensrf:opensrf -R .
 
 # Installing OpenSRF from opensrf_git_branch 
   - name: Make Opensrf as opensrf
@@ -139,6 +139,7 @@
   - name: Add local IP to hosts
     become: true
     shell: echo {{ansible_all_ipv4_addresses.0}} {{ansible_fqdn}} {{ansible_hostname}} >> /etc/hosts
+    ignore_errors: yes
   - name: Put the ejabberd config into place
     become: true
     shell: cp /egconfigs/ejabberd.yml /etc/ejabberd/ejabberd.yml
@@ -219,20 +220,20 @@
     with_items: "{{ Evergreen_cherry_picks }}"
   - name: Setup Evergreen prerequisites 
     become: true
-    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-xenial
+    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-bionic
   - name: Setup Evergreen prerequisites 2nd trip through
     become: true
-    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-xenial
+    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-bionic
   - name: Setup Evergreen developer packages
     become: true
-    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-xenial-developer
-### Install Database
+    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-bionic-developer
+## Install Database
   - name: Setup Evergreen Postgres packages
     become: true
-    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install postgres-server-ubuntu-xenial
-  - name: Allow postgres to talk outside
-    become: true
-    lineinfile: "dest=/etc/postgresql/9.6/main/pg_hba.conf state=present regexp='host    all     evergreen' line='host    all     evergreen       {{ansible_default_ipv4.network}}   {{ansible_default_ipv4.netmask}}      md5'"
+    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install postgres-server-ubuntu-bionic
+  # - name: Allow postgres to talk outside
+    # become: true
+    # lineinfile: "dest=/etc/postgresql/9.6/main/pg_hba.conf state=present regexp='host    all     evergreen' line='host    all     evergreen       {{ansible_eth0.ipv4.network}}   {{ansible_eth0.ipv4.netmask}}      md5'"
   - name: Setup postgresql.conf (if you have a custom file in /egconfigs)
     become: true
     ignore_errors: yes
@@ -312,14 +313,14 @@
   - lineinfile: "dest=/etc/apache2/mods-available/mpm_prefork.conf state=present regexp='StartServers' line='StartServers   20'"
   - lineinfile: "dest=/etc/apache2/mods-available/mpm_prefork.conf state=present regexp='MinSpareServers' line='MinSpareServers   5'"
   - lineinfile: "dest=/etc/apache2/mods-available/mpm_prefork.conf state=present regexp='MaxSpareServers' line='MaxSpareServers   15'"
+  - lineinfile: "dest=/etc/apache2/mods-available/mpm_prefork.conf state=present regexp='MaxRequestWorkers' line='MaxRequestWorkers   150'"
   - lineinfile: dest=/etc/apache2/mods-available/mpm_prefork.conf state=present insertbefore='<\/IfModule>' line='MaxClients   150'
   - lineinfile: dest=/etc/apache2/mods-available/mpm_prefork.conf state=present insertbefore='<\/IfModule>' line='MaxRequestsPerChild   10000'
 
   - lineinfile: "dest=/etc/apache2/eg_vhost.conf state=present regexp='OSRFTranslatorCacheServer' line='OSRFTranslatorCacheServer {{opensrf_memcached_server}}:{{opensrf_memcached_port}}'"
   - lineinfile: "dest=/etc/apache2/eg_vhost.conf state=present regexp='RemoteIPInternalProxy 1' line='RemoteIPInternalProxy 127.0.0.1/24'"
   - lineinfile: "dest=/etc/apache2/eg_vhost.conf state=present regexp='RemoteIPInternalProxy \\:' line='RemoteIPInternalProxy ::1'"
-  - lineinfile: "dest=/etc/apache2/eg_vhost.conf state=present regexp='RemoteIPHeader' line='RemoteIPHeader X-Real-IP'"
-
+  - lineinfile: "dest=/etc/apache2/eg_vhost.conf state=present regexp='RemoteIPHeader' line='RemoteIPHeader X-Forwarded-For'"
   - name: copy custom eg.conf (if exists)
     become: true
     ignore_errors: yes
@@ -405,7 +406,6 @@
     become: true
     ignore_errors: yes
     shell: /usr/sbin/a2dissite default-ssl && /usr/sbin/a2dissite 000-default
-
 ## SETUP NGINX
   - name: Stop Apache
     become: true
@@ -481,11 +481,7 @@
     shell: cp {{ openils_path }}/conf/oils_sip.xml.example {{ openils_path }}/conf/oils_sip.xml && chown opensrf:opensrf -R {{ openils_path }}
   - lineinfile: dest={{ openils_path }}/conf/oils_sip.xml state=present regexp='<login id="scclient" password="clientpwd"' line='<login id="{{evergreen_global_admin}}" password="{{evergreen_global_admin_password}}" institution="sample"/>'
   - lineinfile: dest={{ openils_path }}/conf/oils_sip.xml state=present regexp='<institution id="gapines" implementation="OpenILS::SIP">' line='<institution id="sample" implementation="OpenILS::SIP">'
-## Compile staff client
-  - name: Install nsis
-    apt: name=nsis
-  - name: Install zip
-    apt: name=zip
+
   - name: Make opensrf the owner
     become: true
     shell: chown -R opensrf:opensrf /home/opensrf/repos

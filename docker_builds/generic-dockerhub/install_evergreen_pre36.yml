@@ -273,7 +273,11 @@
   - name: Setting up eg2
     become: true
     become_user: opensrf
-    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/src/eg2/ && npm install && npm run build --prod && npm run test
+    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/src/eg2/ && npm install && npm run build --prod
+  - name: Setting up bootstrap OPAC
+    become: true
+    become_user: opensrf
+    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/web/opac/deps/ && npm install
   - name: Configuring Evergreen code and make
     become: true
     become_user: opensrf

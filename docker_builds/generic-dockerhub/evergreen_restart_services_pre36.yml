@@ -5,7 +5,7 @@
   remote_user: user
   become_method: sudo
   vars_files:
-    - 16.04_master_cloud.yml
+    - 16.04_3.2.x.yml
   tasks:
   - name: Setup host file
     become: true
@@ -19,7 +19,7 @@
     shell: echo 127.0.1.3       private.localhost       private >> /etc/hosts
   - name: Add local IP to hosts
     become: true
-    shell: echo {{ansible_all_ipv4_addresses.0}} {{ansible_fqdn}}.{{domain_name}} {{ansible_hostname}} >> /etc/hosts
+    shell: echo {{ansible_all_ipv4_addresses.0}} {{ansible_fqdn}} {{ansible_hostname}} >> /etc/hosts
   - name: starting ssh
     service:
       name: ssh
@@ -34,28 +34,19 @@
     service:
       name: syslog-ng
       state: started
-  - name: Set Timezone Environment Var root
+  - name: starting memcached
+    service:
+      name: memcached
+      state: started
+  - name: starting postgres
+    service:
+      name: postgresql
+      state: started
+  - name: Set Timezone Environment Var
     become: true
     lineinfile: "dest=/root/.bashrc state=present line='export TZ=America/Chicago'"
-  - name: Set Timezone Environment Var opensrf
-    become: true
     lineinfile: "dest=/home/opensrf/.bashrc state=present line='export TZ=America/Chicago'"
-  - name: Set Timezone Environment Var user
-    become: true
     lineinfile: "dest=/home/user/.bashrc state=present line='export TZ=America/Chicago'"
-  - name: Set Timezone Environment Var for cron
-    become: true
-    lineinfile: "dest=/etc/crontab state=present line='TZ=America/Chicago' insertafter='PATH'"
-  - name: Set Timezone Environment Var for cron.conf
-    become: true
-    lineinfile: "dest=/etc/init/cron.conf state=present line='TZ=America/Chicago' insertbefore='expect'"
-  - name: Remove Timezone file
-    become: true
-    file: path=/etc/localtime state=absent
-  - name: Setup System Timezone
-    become: true
-    ignore_errors: yes
-    shell: ln -s /usr/share/zoneinfo/US/Central /etc/localtime
   - stat: path=/egconfigs/logrotate_evergreen.txt
     register: logrotate_template
   - name: Setup Logrotate for opensrf logs
@@ -104,9 +95,11 @@
     pause: seconds=2
   - name: Setup ejabberd users
     become: true
+    become_user: ejabberd
     shell: ejabberdctl unregister router private.localhost && ejabberdctl unregister opensrf private.localhost && ejabberdctl unregister router public.localhost && ejabberdctl unregister opensrf public.localhost 
   - name: Setup ejabberd users
     become: true
+    become_user: ejabberd
     shell: ejabberdctl register router private.localhost {{ejabberd_password}} && ejabberdctl register opensrf private.localhost {{ejabberd_password}} && ejabberdctl register router public.localhost {{ejabberd_password}} && ejabberdctl register opensrf public.localhost {{ejabberd_password}}
 ## Evergreen services restart
   - name: Disable the default apache sites
@@ -118,10 +111,14 @@
     service:
       name: apache2
       state: stopped
-  - name: Stop Websockets services
+  - name: Stop Websocketd
+    become: true
+    ignore_errors: yes
+    shell: "/bin/ps -ef | /bin/grep osrf-websocket-stdio | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9"
+  - name: Stop nginx Websockets proxy
     become: true
     service:
-      name: apache2-websockets
+      name: nginx
       state: stopped
   - name: Stop OpenSRF
     become: true
@@ -166,6 +163,7 @@
   - name: Sync up the {{openils_path}} directories
     become: true
     shell: "{{ sync_openils_sub_folders_cmd }}"
+    ignore_errors: yes
   - name: Start OpenSRF
     become: true
     become_user: opensrf
@@ -182,26 +180,60 @@
     shell:  export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/autogen.sh -u
   - name: Setup Lets encrypt folder link
     become: true
-    shell: cd {{openils_path}}/var/web && ln -sf {{lets_encrypt_shared_web_folder}} .well-known && chown -R opensrf:opensrf {{openils_path}}
+    shell: cd {{openils_path}}/var/web && ln -sf {{lets_encrypt_shared_web_folder}} .well-known
   - name: Setup shared reports folder link
     become: true
-    shell: cd {{openils_path}}/var/web && ln -sf {{shared_reports_folder}} reporter && chown -R opensrf:opensrf {{openils_path}}
+    become_user: opensrf
+    shell: cd {{openils_path}}/var/web && ln -sf {{shared_reports_folder}} reporter
   - name: Setup circ_notices link
     become: true
-    shell: cd {{openils_path}}/var/web && ln -sf {{shared_circ_notices_folder}} circ_notices && chown -R opensrf:opensrf {{openils_path}}
+    become_user: opensrf
+    shell: cd {{openils_path}}/var/web && ln -sf {{shared_circ_notices_folder}} notices
   - name: Copy fm_IDL
     become: true
+    become_user: opensrf
     shell: cp {{ openils_path }}/conf/fm_IDL.xml {{ openils_path }}/var/web/reports/fm_IDL.xml
   - name: Start Web services
     become: true
     service:
       name: apache2
       state: started
-  - name: Start Websockets services
+  - name: create websocketd start script
+    file:
+      path: /egconfigs/start_websocketd
+      state: touch
+      owner: root
+      group: root
+      mode: '0755'
+  - name: Building /egconfigs/start_websocketd
     become: true
-    command: /etc/init.d/apache2-websockets start
-    register: command_result
-    failed_when: "'fail' in command_result.stdout"
+    lineinfile: 'dest=/egconfigs/start_websocketd state=present regexp="#!/bin/bas" line="#!/bin/bash"'
+  - name: Building /egconfigs/start_websocketd
+    become: true
+    lineinfile: 'dest=/egconfigs/start_websocketd state=present regexp="websocketd" line="/usr/local/bin/websocketd --loglevel error --port 7682 /openils/bin/osrf-websocket-stdio >& /dev/null &"'
+  - name: Starting websocketd
+    become: true
+    become_user: opensrf
+    shell: '/egconfigs/start_websocketd'
+  - name: Concat the Certificates for nginx
+    become: true
+    shell: cat /etc/apache2/ssl/server.crt > /etc/apache2/ssl/nginx.crt
+  - name: Fix nginx certificate config
+    become: true
+    lineinfile: 'dest=/etc/nginx/sites-available/osrf-ws-http-proxy state=present regexp="ssl_certificate \/" line="ssl_certificate /etc/apache2/ssl/nginx.crt;"'
+  - name: Fix nginx certificate config
+    become: true
+    lineinfile: 'dest=/etc/nginx/sites-available/osrf-ws-http-proxy state=present regexp="ssl_certificate_key\s" line="ssl_certificate_key /etc/apache2/ssl/server.key;"'
+  - name: Start nginx Websockets proxy
+    become: true
+    service:
+      name: nginx
+      state: started
+  - name: copy the oils_sip.xml
+    become: true
+    shell: cp {{ openils_path }}/conf/oils_sip.xml.example {{ openils_path }}/conf/oils_sip.xml && chown opensrf:opensrf -R {{ openils_path }}
+  - lineinfile: dest={{ openils_path }}/conf/oils_sip.xml state=present regexp='<login id="scclient" password="clientpwd"' line='<login id="{{evergreen_global_admin}}" password="{{evergreen_global_admin_password}}" institution="sample"/>'
+  - lineinfile: dest={{ openils_path }}/conf/oils_sip.xml state=present regexp='<institution id="gapines" implementation="OpenILS::SIP">' line='<institution id="sample" implementation="OpenILS::SIP">'
   - name: Start SIP
     become: true
     become_user: opensrf
@@ -216,59 +248,52 @@
   - name: Remove Reporter Lock File
     become: true
     file: path=/tmp/reporter-LOCK state=absent
-    when: ansible_hostname == "ksl-db1"
-  - name: Start EDI Webbrick on utility
-    remote_user: opensrf
-    when: ansible_hostname == "ksl-db1"
-    environment:
-      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
-    shell: "cd {{openils_path}}/var/edi/edi_translator && ./edi_webrick.bash"
   - name: Start Clark Kent
     remote_user: opensrf
-    when: ansible_hostname == "ksl-db1"
     environment:
       PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
     shell: "{{openils_path}}/bin/clark-kent.pl -d -c 4"
 
-## Compile staff client
-## This is slow, turning it off because it was done at docker compile time
-  # - name: Install nsis
-    # apt: name=nsis
-  # - name: Install zip
-    # apt: name=zip
-  # - name: Remove xul/server links
-    # become: true
-    # shell: rm {{openils_path}}/var/web/xul/server
-  # - name: Compile xul staff client
-    # become: true
-    # shell: cd /home/opensrf/repos/Evergreen/Open-ILS/xul/staff_client && make clean && make AUTOUPDATE_HOST={{domain_name}} STAFF_CLIENT_STAMP_ID={{evergreen_stamp_id}} STAFF_CLIENT_BUILD_ID={{evergreen_stamp_id}} rigrelease install && make updates-client
-  # - name: Setup Symlink {{openils_path}}/var/web/xul/server
-    # become: true
-    # shell: cd {{openils_path}}/var/web/xul && ln -sf {{evergreen_stamp_id}}/server server && chown -R opensrf:opensrf {{openils_path}}
-  # - name: Make opensrf the owner
-    # become: true
-    # shell: chown -R opensrf:opensrf /home/opensrf/repos
-## Start z39.50
-  - name: Start z39.50 stuff
-    become: true
-    shell: /usr/bin/perl -w /usr/bin/simple2zoom -c {{openils_path}}/conf/dgo.conf -- -f {{openils_path}}/conf/xml2marc-yaz.cfg localhost:2210 catalog.library.ks.gov:210 -v all,sessiondetail,requestdetail,zoom,zoomdetails &
-  - name: Ensure the cron z3950kill is present
-    become: true
-    cron: name="kill z3950" minute="0" hour="2" job="ps aux | grep simple[2]zoom | awk '{print $2}' | xargs kill"  
-  - name: Ensure the cron restart is present
-    become: true
-    cron: name="restart z3950" minute="1" hour="2" job="/usr/bin/perl -w /usr/bin/simple2zoom -c {{openils_path}}/conf/dgo.conf -- -f {{openils_path}}/conf/xml2marc-yaz.cfg localhost:2210 catalog.library.ks.gov:210 -v all,sessiondetail,requestdetail,zoom,zoomdetails >> {{openils_path}}/var/log/z3950.log 2>&1"
 ## Setup Sitemap generator
   - name: Ensure the cron restart is present
-    cron: user="opensrf" name="Site Map Generator" minute="4" hour="4" job=". /etc/profile && cd {{openils_path}}/var/web && {{openils_path}}/bin/sitemap_generator --config-file {{openils_path}}/conf/opensrf.xml --lib-hostname http://catalog.library.ks.gov"
-  - name: starting sendmail
-    shell: /etc/init.d/sendmail start
-  - name: restarting cron
-    service:
-      name: cron
-      state: restarted
+    cron: user="opensrf" name="Site Map Generator" minute="4" hour="4" job=". /etc/profile && cd {{openils_path}}/var/web && {{openils_path}}/bin/sitemap_generator --config-file {{openils_path}}/conf/opensrf.xml --lib-hostname {{domain_name}}"
+  - name: Run the hold targeter
+    cron: user="opensrf" name="Run the hold targeter" minute="4" job=". /etc/profile && cd {{openils_path}}/bin/hold_targeter.pl {{openils_path}}/conf/opensrf_core.xml"
+  - name: Run the hold thawer
+    cron: user="opensrf" name="Run the hold thawer" minute="4" hour="0" job=". /etc/profile && cd {{openils_path}}/bin/thaw_expired_frozen_holds.srfsh"
+  - name: Generate fines
+    cron: user="opensrf" name="Generate fines" minute="30" hour="0" job=". /etc/profile && cd {{openils_path}}/bin/fine_generator.pl {{openils_path}}/conf/opensrf_core.xml"
+  - name: Run the reshelving completer
+    cron: user="opensrf" name="Run the reshelving completer" minute="2" hour="0" job=". /etc/profile && cd {{openils_path}}/bin/reshelving_complete.srfsh"
+  - name: Run the pending user purger
+    cron: user="opensrf" name="Run the pending user purger" minute="30" hour="2" job=". /etc/profile && cd {{openils_path}}/bin/purge_pending_users.srfsh"
+  - name:  create the list of blocked patrons for offline use
+    cron: user="opensrf" name="create the list of blocked patrons for offline use" minute="30" hour="6" job=". /etc/profile && cd {{openils_path}}/bin/offline-blocked-list.pl {{openils_path}}/conf/opensrf_core.xml > {{openils_path}}/var/web/standalone/list.txt"
+  - name: Run the hard due date updater
+    cron: user="opensrf" name="Run the hard due date updater" minute="2" hour="3" job=". /etc/profile && cd {{openils_path}}/bin/update_hard_due_dates.srfsh"
+  - name: Calculate scores for popularity badges
+    cron: user="opensrf" name="Calculate scores for popularity badges" minute="30" hour="4" job=". /etc/profile && cd {{openils_path}}/bin/badge_score_generator.pl {{openils_path}}/conf/opensrf_core.xml"
+
+  - name: Runs all pending A/T events every half hour
+    cron: user="opensrf" name="Runs all pending A/T events every half hour" minute="30" job=". /etc/profile && cd {{openils_path}}/bin/action_trigger_runner.pl --osrf-config {{openils_path}}/conf/opensrf_core.xml --run-pending"
+  - name: A/T hourly
+    cron: user="opensrf" name="A/T hourly" minute="0" job=". /etc/profile && cd {{openils_path}}/bin/action_trigger_runner.pl --osrf-config {{openils_path}}/conf/opensrf_core.xml --process-hooks --granularity hourly"
+  - name: A/T daily
+    cron: user="opensrf" name="A/T daily" minute="5" hour="3" job=". /etc/profile && cd {{openils_path}}/bin/action_trigger_runner.pl --osrf-config {{openils_path}}/conf/opensrf_core.xml --process-hooks --granularity daily"
+  - name: A/T weekdays
+    cron: user="opensrf" name="A/T weekdays" minute="10" hour="3" weekday="1-5" job=". /etc/profile && cd {{openils_path}}/bin/action_trigger_runner.pl --osrf-config {{openils_path}}/conf/opensrf_core.xml --process-hooks --granularity weekdays"
+  - name: A/T weekly
+    cron: user="opensrf" name="A/T weekly" minute="2" hour="3" weekday="0" job=". /etc/profile && cd {{openils_path}}/bin/action_trigger_runner.pl --osrf-config {{openils_path}}/conf/opensrf_core.xml --process-hooks --granularity weekly"
+  - name: A/T monthly
+    cron: user="opensrf" name="A/T monthly" minute="20" hour="3" day="1" job=". /etc/profile && cd {{openils_path}}/bin/action_trigger_runner.pl --osrf-config {{openils_path}}/conf/opensrf_core.xml --process-hooks --granularity monthly"
+  - name: A/T yearly
+    cron: user="opensrf" name="A/T yearly" minute="25" hour="3" day="1" month="1" job=". /etc/profile && cd {{openils_path}}/bin/action_trigger_runner.pl --osrf-config {{openils_path}}/conf/opensrf_core.xml --process-hooks --granularity yearly"    
+
   - name: Setup ping.txt
     remote_user: opensrf
     shell: echo pong > {{openils_path}}/var/web/ping.txt && chown opensrf:opensrf {{openils_path}}/var/web/ping.txt
+  - name: chowning openils
+    become: true
+    shell: chown -R opensrf:opensrf {{openils_path}}
 
 ...

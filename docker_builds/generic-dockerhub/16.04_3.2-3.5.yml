@@ -1,0 +1,31 @@
+---
+  opensrf_git_branch: osrf_rel_3_2_1
+  evergreen_git_branch: tags/rel_3_6_1
+# This directory will be linked to /openilspath/var/web/.well-known
+  lets_encrypt_shared_web_folder: /mnt/evergreen/letsencrypt_shared_web_directory/.well-known
+  shared_reports_folder: /mnt/evergreen/reports
+  shared_circ_notices_folder: /mnt/evergreen/circ_notices
+  sync_openils_sub_folders_cmd: /mnt/evergreen/apps/syncop
+  ejabberd_password: ejabberdpassword
+  os_user_password: password
+  openils_path: /openils
+  evergreen_stamp_id: rel_3_4_1
+  domain_name: localhost
+  database_host: 127.0.0.1
+  database_database: evergreen
+  database_port: 5432
+  database_user: evergreen
+  database_password: databasepassword
+  evergreen_global_admin: admin
+  evergreen_global_admin_password: demo123
+  sender_address: no-reply@localhost.com
+  base_reporter_uri: https://localhost/reporter/
+  reporter_output_folder: /openils/var/web/reporter
+  opensrf_zip_file_line: <zips_file>/openils/conf/zips.txt</zips_file>
+  opensrf_memcached_server: 127.0.0.1
+  opensrf_memcached_port: 11211
+  use_custom_opensrf_xml: no
+  Evergreen_cherry_picks: []
+  OpenSRF_cherry_picks: []
+  SIPServer_cherry_picks: []
+...

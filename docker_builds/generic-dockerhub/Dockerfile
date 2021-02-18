@@ -1,4 +1,4 @@
-FROM ubuntu:16.04
+FROM ubuntu:18.04
 
 EXPOSE 22
 EXPOSE 80
@@ -10,13 +10,19 @@ RUN useradd user -m -s /bin/bash
 RUN useradd opensrf -m -s /bin/bash
 RUN useradd evergreen -m -s /bin/bash
 RUN apt-get update
-RUN apt-get -y install sendmail mailutils sendmail-bin logrotate ssh net-tools iputils-ping sudo nano make autoconf libtool git mlocate ansible git-core ntp cron screen
+ENV DEBIAN_FRONTEND noninteractive
+ENV TZ=America/New_York
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+RUN apt-get update && apt-get install -y --no-install-recommends apt-utils
+RUN apt-get -y install syslog-ng-core sendmail mailutils sendmail-bin logrotate ssh net-tools iputils-ping sudo nano make autoconf libtool git mlocate ansible git-core ntp cron screen rsync curl
+RUN dpkg-reconfigure --frontend noninteractive tzdata
+
 RUN mkdir /egconfigs
 RUN mkdir -p /mnt/evergreen
 
 # Run dockerbase script
 ADD     syslog-ng.sh /egconfigs/
-RUN     chmod +x /egconfigs/syslog-ng.sh
+RUN     chmod a+xrw /egconfigs/syslog-ng.sh
 RUN     /egconfigs/syslog-ng.sh
 
 # Add syslog-ng into runit
@@ -33,7 +39,7 @@ ADD hosts /egconfigs/hosts
 ADD ejabberd.yml /egconfigs/ejabberd.yml
 ADD logrotate_evergreen.txt /egconfigs/logrotate_evergreen.txt
 
-ADD 16.04_3.2.x.yml /egconfigs/16.04_3.2.x.yml
+ADD 18.04_3.6.yml /egconfigs/18.04_3.6.yml
 ADD install_evergreen.yml /egconfigs/install_evergreen.yml
 ADD evergreen_restart_services.yml /egconfigs/evergreen_restart_services.yml
 RUN cd /egconfigs && ansible-playbook install_evergreen.yml -v -e "hosts=127.0.0.1"
