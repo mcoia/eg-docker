@@ -273,11 +273,7 @@
   - name: Setting up eg2
     become: true
     become_user: opensrf
-    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/src/eg2/ && npm install && npm run build --prod
-  - name: Setting up bootstrap OPAC
-    become: true
-    become_user: opensrf
-    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/web/opac/deps/ && npm install
+    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/src/eg2/ && npm install && ng build --prod
   - name: Configuring Evergreen code and make
     become: true
     become_user: opensrf
@@ -304,14 +300,14 @@
   - lineinfile: "dest=/etc/apache2/mods-available/mpm_prefork.conf state=present regexp='StartServers' line='StartServers   20'"
   - lineinfile: "dest=/etc/apache2/mods-available/mpm_prefork.conf state=present regexp='MinSpareServers' line='MinSpareServers   5'"
   - lineinfile: "dest=/etc/apache2/mods-available/mpm_prefork.conf state=present regexp='MaxSpareServers' line='MaxSpareServers   15'"
+  - lineinfile: "dest=/etc/apache2/mods-available/mpm_prefork.conf state=present regexp='MaxRequestWorkers' line='MaxRequestWorkers   150'"
   - lineinfile: dest=/etc/apache2/mods-available/mpm_prefork.conf state=present insertbefore='<\/IfModule>' line='MaxClients   150'
   - lineinfile: dest=/etc/apache2/mods-available/mpm_prefork.conf state=present insertbefore='<\/IfModule>' line='MaxRequestsPerChild   10000'
 
   - lineinfile: "dest=/etc/apache2/eg_vhost.conf state=present regexp='OSRFTranslatorCacheServer' line='OSRFTranslatorCacheServer {{opensrf_memcached_server}}:{{opensrf_memcached_port}}'"
   - lineinfile: "dest=/etc/apache2/eg_vhost.conf state=present regexp='RemoteIPInternalProxy 1' line='RemoteIPInternalProxy 127.0.0.1/24'"
   - lineinfile: "dest=/etc/apache2/eg_vhost.conf state=present regexp='RemoteIPInternalProxy \\:' line='RemoteIPInternalProxy ::1'"
-  - lineinfile: "dest=/etc/apache2/eg_vhost.conf state=present regexp='RemoteIPHeader' line='RemoteIPHeader X-Real-IP'"
-
+  - lineinfile: "dest=/etc/apache2/eg_vhost.conf state=present regexp='RemoteIPHeader' line='RemoteIPHeader X-Forwarded-For'"
   - name: copy custom eg.conf (if exists)
     become: true
     ignore_errors: yes
