@@ -6,7 +6,7 @@
   remote_user: user
   become_method: sudo
   vars_files:
-    - 18.04_3.9.yml
+    - 18.04_3.6.yml
   tasks:
   - name: starting ssh
     service:
@@ -230,14 +230,18 @@
 ## Install Database
   - name: Setup Evergreen Postgres packages
     become: true
-    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install postgres-server-ubuntu-bionic-{{ postgres_version }}
+    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install postgres-server-ubuntu-bionic
   # - name: Allow postgres to talk outside
     # become: true
     # lineinfile: "dest=/etc/postgresql/9.6/main/pg_hba.conf state=present regexp='host    all     evergreen' line='host    all     evergreen       {{ansible_eth0.ipv4.network}}   {{ansible_eth0.ipv4.netmask}}      md5'"
   - name: Setup postgresql.conf (if you have a custom file in /egconfigs)
     become: true
     ignore_errors: yes
-    shell: cp /egconfigs/postgresql.conf /etc/postgresql/{{ postgres_version }}/main
+    shell: cp /egconfigs/postgresql.conf /etc/postgresql/9.6/main
+  - name: Ensure that plperl is installed
+    become: true
+    ignore_errors: yes
+    shell: apt-get -y install postgresql-plperl-9.6
   - name: Disable transparent_hugepages in grub
     become: true
     ignore_errors: yes
@@ -246,6 +250,13 @@
     become: true
     ignore_errors: yes
     shell: echo never > /sys/kernel/mm/transparent_hugepage/enabled
+  - name: i18n prereqs
+    become: true
+    shell: apt-get -y install translate-toolkit python-dev python-levenshtein python-polib python-setuptools python-simplejson python-lxml liblocale-maketext-lexicon-perl
+  - name: update PO files
+    become: true
+    become_user: opensrf
+    shell: cd /home/opensrf/repos/Evergreen/build/i18n && mkdir locale && make newpot && make LOCALE=fr-CA updatepo && make LOCALE=es-ES updatepo && make LOCALE=cs-CZ updatepo && make LOCALE=ar-JO updatepo && make LOCALE=fr-CA install && make LOCALE=es-ES install && make LOCALE=cs-CZ install && make LOCALE=ar-JO install 
   - name: starting postgres
     service:
       name: postgresql
@@ -325,6 +336,77 @@
     become: true
     ignore_errors: yes
     shell: cp /egconfigs/eg_vhost.conf /etc/apache2/eg_vhost.conf
+  - lineinfile:
+      dest: /etc/apache2/eg_vhost.conf
+      line: PerlAddVar OILSWebLocale "fr_ca"
+  - lineinfile:
+      dest: /etc/apache2/eg_vhost.conf
+      line: PerlAddVar OILSWebLocale "/openils/var/data/locale/opac/fr-CA.po"
+  - lineinfile:
+      dest: /etc/apache2/eg_vhost.conf
+      line: PerlAddVar OILSWebLocale "es_es"
+  - lineinfile:
+      dest: /etc/apache2/eg_vhost.conf
+      line: PerlAddVar OILSWebLocale "/openils/var/data/locale/opac/es-ES.po"
+  - lineinfile:
+      dest: /etc/apache2/eg_vhost.conf
+      line: PerlAddVar OILSWebLocale "ar_jo"
+  - lineinfile:
+      dest: /etc/apache2/eg_vhost.conf
+      line: PerlAddVar OILSWebLocale "/openils/var/data/locale/opac/ar-JO.po"
+  - lineinfile:
+      dest: /etc/apache2/eg_vhost.conf
+      line: PerlAddVar OILSWebLocale "cs_cz"
+  - lineinfile:
+      dest: /etc/apache2/eg_vhost.conf
+      line: PerlAddVar OILSWebLocale "/openils/var/data/locale/opac/cs-CZ.po"
+  - lineinfile:
+      dest: /etc/apache2/eg_vhost.conf
+      line: PerlAddVar OILSWebDefaultLocale "es_es"
+  - lineinfile:
+      dest: /etc/apache2/eg_vhost.conf
+      line: RewriteCond %{REQUEST_URI} ^/eg2/
+  - lineinfile:
+      dest: /etc/apache2/eg_vhost.conf
+      line: RewriteCond %{REQUEST_URI} !^/eg2/fr-CA/
+  - lineinfile:
+      dest: /etc/apache2/eg_vhost.conf
+      line: RewriteCond %{HTTP_COOKIE} eg_locale=fr_ca
+  - lineinfile:
+      dest: /etc/apache2/eg_vhost.conf
+      line: RewriteRule ^/eg2/(.*) https://%{HTTP_HOST}/eg2/fr-CA/$1 [R=307,L]
+  - lineinfile:
+      dest: /etc/apache2/eg_vhost.conf
+      insertafter: . sample staff-specific translation files
+      line: PerlAddVar OILSWebLocale "/openils/var/data/locale/staff/es-ES.po"
+  - lineinfile:
+      dest: /etc/apache2/eg_vhost.conf
+      insertafter: . sample staff-specific translation files
+      line: PerlAddVar OILSWebLocale "es_es"
+  - lineinfile:
+      dest: /etc/apache2/eg_vhost.conf
+      insertafter: . sample staff-specific translation files
+      line: PerlAddVar OILSWebLocale "/openils/var/data/locale/staff/ar-JO.po"
+  - lineinfile:
+      dest: /etc/apache2/eg_vhost.conf
+      insertafter: . sample staff-specific translation files
+      line: PerlAddVar OILSWebLocale "ar_jo"
+  - lineinfile:
+      dest: /etc/apache2/eg_vhost.conf
+      insertafter: . sample staff-specific translation files
+      line: PerlAddVar OILSWebLocale "/openils/var/data/locale/staff/cs-CZ.po"
+  - lineinfile:
+      dest: /etc/apache2/eg_vhost.conf
+      insertafter: . sample staff-specific translation files
+      line: PerlAddVar OILSWebLocale "cs-cz"
+  - lineinfile:
+      dest: /etc/apache2/eg_vhost.conf
+      insertafter: . sample staff-specific translation files
+      line: PerlAddVar OILSWebLocale "/openils/var/data/locale/staff/fr-CA.po"
+  - lineinfile:
+      dest: /etc/apache2/eg_vhost.conf
+      insertafter: . sample staff-specific translation files
+      line: PerlAddVar OILSWebLocale "fr-ca"
   - name: Enable apache prefork module and evergreen default apache site
     become: true
     shell: /usr/sbin/a2dismod mpm_event && /usr/sbin/a2enmod mpm_prefork && /usr/sbin/a2ensite eg.conf && chown opensrf /var/lock/apache2
@@ -432,6 +514,12 @@
   - name: Enable apache remoteip module
     become: true
     shell: /usr/sbin/a2enmod remoteip
+  - name: Symlink eg2 to the repo
+    become: true
+    become_user: opensrf
+    shell: rm -rf /openils/var/web/eg2/en-US && ln -s /home/opensrf/repos/Evergreen/Open-ILS/web/eg2/en-US /openils/var/web/eg2/en-US
+
+
 
 ## Evergreen is installed
 

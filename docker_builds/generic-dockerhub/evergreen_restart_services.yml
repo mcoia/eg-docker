@@ -5,7 +5,7 @@
   remote_user: user
   become_method: sudo
   vars_files:
-    - 18.04_3.6.yml
+    - 18.04_3.9.yml
   tasks:
   - name: Setup host file
     become: true

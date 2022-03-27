@@ -39,7 +39,7 @@ ADD hosts /egconfigs/hosts
 ADD ejabberd.yml /egconfigs/ejabberd.yml
 ADD logrotate_evergreen.txt /egconfigs/logrotate_evergreen.txt
 
-ADD 18.04_3.6.yml /egconfigs/18.04_3.6.yml
+ADD 18.04_3.9.yml /egconfigs/18.04_3.9.yml
 ADD install_evergreen.yml /egconfigs/install_evergreen.yml
 ADD evergreen_restart_services.yml /egconfigs/evergreen_restart_services.yml
 RUN cd /egconfigs && ansible-playbook install_evergreen.yml -v -e "hosts=127.0.0.1"
