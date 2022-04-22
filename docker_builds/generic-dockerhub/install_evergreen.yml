@@ -266,7 +266,7 @@
   - name: Setting up npm
     become: true
     become_user: opensrf
-    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/web/js/ui/default/staff/ && npm install && npm run build-prod && npm run test
+    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/web/js/ui/default/staff/ && npm install && npm run build-prod
     environment:
       CHROME_BIN: /usr/bin/chromium-browser
   - name: Setting up bootstrap opac
@@ -282,7 +282,7 @@
   - name: Setting up eg2
     become: true
     become_user: opensrf
-    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/src/eg2/ && npm install && ng build --prod && npm run test
+    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/src/eg2/ && npm install && ng build --prod
   - name: Configuring Evergreen code and make
     become: true
     become_user: opensrf
