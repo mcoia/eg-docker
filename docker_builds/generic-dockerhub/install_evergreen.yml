@@ -311,7 +311,7 @@
   - lineinfile: "dest=/etc/apache2/mods-available/mpm_prefork.conf state=present regexp='MaxSpareServers' line='MaxSpareServers   15'"
   - lineinfile: "dest=/etc/apache2/mods-available/mpm_prefork.conf state=present regexp='MaxRequestWorkers' line='MaxRequestWorkers   150'"
   - lineinfile: dest=/etc/apache2/mods-available/mpm_prefork.conf state=present insertbefore='<\/IfModule>' line='MaxClients   150'
-  - lineinfile: dest=/etc/apache2/mods-available/mpm_prefork.conf state=present insertbefore='<\/IfModule>' line='MaxRequestsPerChild   10000'
+  - lineinfile: dest=/etc/apache2/mods-available/mpm_prefork.conf state=present insertbefore='<\/IfModule>' line='MaxRequestsPerChild   5000'
 
   - lineinfile: "dest=/etc/apache2/eg_vhost.conf state=present regexp='OSRFTranslatorCacheServer' line='OSRFTranslatorCacheServer {{opensrf_memcached_server}}:{{opensrf_memcached_port}}'"
   - lineinfile: "dest=/etc/apache2/eg_vhost.conf state=present regexp='RemoteIPInternalProxy 1' line='RemoteIPInternalProxy 127.0.0.1/24'"
