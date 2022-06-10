@@ -74,12 +74,13 @@ If you find that this build won't finish. Then you need to break the process dow
 
 - Edit Dockerfile. Comment out these two lines:
 
-`#RUN cd /egconfigs && ansible-playbook install_evergreen.yml -v -e "hosts=127.0.0.1"`
-`#ENTRYPOINT cd /egconfigs && ansible-playbook evergreen_restart_services.yml -vvvv -e "hosts=127.0.0.1" && while true; do sleep 1; done`
+  `#RUN cd /egconfigs && ansible-playbook install_evergreen.yml -v -e "hosts=127.0.0.1"`
+
+  `#ENTRYPOINT cd /egconfigs && ansible-playbook evergreen_restart_services.yml -vvvv -e "hosts=127.0.0.1" && while true; do sleep 1; done`
 
 - UNCOMMENT this line:
 
-`ENTRYPOINT while true; do sleep 1; done`
+  `ENTRYPOINT while true; do sleep 1; done`
 
 
 - Then perform the docker build again. This time, it should finish.
