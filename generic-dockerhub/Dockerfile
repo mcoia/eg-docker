@@ -1,4 +1,6 @@
-FROM ubuntu:18.04
+FROM ubuntu:20.04
+ARG os=focal
+# For reference: xenial = 16.04, bionic = 18.04, focal = 20.04
 
 EXPOSE 22
 EXPOSE 80
@@ -15,7 +17,7 @@ ENV TZ=America/New_York
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 RUN apt-get update && apt-get install -y --no-install-recommends apt-utils
 RUN apt-get -y install syslog-ng-core sendmail mailutils sendmail-bin logrotate ssh net-tools iputils-ping sudo nano make autoconf libtool git mlocate ansible git-core ntp cron screen rsync curl
-RUN dpkg-reconfigure --frontend noninteractive tzdata
+RUN if [ $os != "xenial"] ; then dpkg-reconfigure --frontend noninteractive tzdata ; fi
 
 RUN mkdir /egconfigs
 RUN mkdir -p /mnt/evergreen
@@ -36,11 +38,15 @@ RUN	sed -i -E 's/^(\s*)system\(\);/\1unix-stream("\/dev\/log");/' /etc/syslog-ng
 RUN	sed -i 's/^#\(SYSLOGNG_OPTS="--no-caps"\)/\1/g' /etc/default/syslog-ng
 
 ADD hosts /egconfigs/hosts
-ADD ejabberd.yml /egconfigs/ejabberd.yml
+ADD ejabberd_focal.yml /egconfigs/ejabberd_focal.yml
+ADD ejabberd_bionic.yml /egconfigs/ejabberd_bionic.yml
+ADD ejabberd_xenial.yml /egconfigs/ejabberd_xenial.yml
+
 ADD logrotate_evergreen.txt /egconfigs/logrotate_evergreen.txt
 
-ADD 18.04_3.9.yml /egconfigs/18.04_3.9.yml
+ADD vars.yml /egconfigs/vars.yml
 ADD install_evergreen.yml /egconfigs/install_evergreen.yml
 ADD evergreen_restart_services.yml /egconfigs/evergreen_restart_services.yml
 RUN cd /egconfigs && ansible-playbook install_evergreen.yml -v -e "hosts=127.0.0.1"
 ENTRYPOINT cd /egconfigs && ansible-playbook evergreen_restart_services.yml -vvvv -e "hosts=127.0.0.1" && while true; do sleep 1; done
+#ENTRYPOINT while true; do sleep 1; done

@@ -12,12 +12,11 @@ spec:
     port: 210
   - name: ssl
     port: 443
-  - name: wbsc
-    port: 7680
-  - name: wbsc2
-    port: 7682
   - name: sip
     port: 6001
+  - name: stunnel
+    port: 6443
   selector:
     role: apps
   type: LoadBalancer
+  externalTrafficPolicy: Local

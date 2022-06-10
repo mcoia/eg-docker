@@ -1,19 +1,99 @@
-MOBIUS Evergreen Docker example set
-===================================
+# MOBIUS Evergreen Docker example set
 
-1.  Setup local docker. Customize docker_builds/generic-dockerhub/16.04_master_cloud.yml
-2.  Customize hosts
-3.  Create a database server
-4.  docker build docker_builds/ksl/.
-5.  Debug errors, repeat
-6.  Setup gcloud SDK
-7.  Customize yaml files for your needs
-8.  kubectl create -f nfs-pv.yaml
-9.  kubectl create -f nfs-pvc.yaml
-10.  kubectl create -f create_apps_service.yml
-11.  kubectl create -f create_apps.yml
-12.  Refer to presentation
-[Evergreen conference 2017 presentation](http://slides.mobiusconsortium.org/blake/evergreengoogledocker/)
+## Recommended Hardware
+
+- I recommend at least 4 CPU's and 4GB of memory, but 8CPU, 8GB would be better :)
+
+- You might find the 2017 presentation helpful [Evergreen conference 2017 presentation](http://slides.mobiusconsortium.org/blake/evergreengoogledocker/)
+
+## First steps
+
+- Make sure your host machine is not using the following ports
+  - 32
+  - 80
+  - 443
+
+- Clone this repo
+
+  `git clone https://github.com/mcoia/eg-docker.git`
+
+
+### Maybe customize vars.yml and Dockerfile
+
+- Set your desired ubuntu version (xenial, bionic, focal)
+  - Keep in mind that certain versions of Evergreen are only compatible with certain versions of ubuntu
+
+- Set your desired Evergreen version
+  - This installation is "best effort". install_evergreen.yml makes a best effort to install different versions of Evergreen that you choose. Mileage will vary because of the Node dependency stack as time goes on.
+
+### Build the container
+
+`cd generic-dockerhub && docker build .`
+
+### Run the container
+
+`docker run -it -p 80:80 -p 443:443 -p 32:22 -h app.brick.com 51d5369e7d89`
+
+- NOTE: replace the image hash with yours
+
+### Look for the container finish line
+
+- When the container is ready, you should see something that looks like
+
+  `PLAY RECAP *******************************************************************************************************************************`
+
+And it will be aparantly hanging. You need to issue this command:
+
+ctrl+pq
+
+which will escape out of the console of the Docker container without killing the container
+
+### Open a web browser
+
+Attempt to connect to the server on your web browser:
+
+http://127.0.0.1
+
+Use your specific IP as needed.
+
+### Certificates
+
+This build will create a self-signed SSL certificate. Your browser will give you an error. As long as you connect to the server by IP address (not domain name), your browser will allow you to make an exception.
+
+### SSH
+
+This build creates a linux user in the Docker container. The user is "user" and the password is: "password"
+
+This allows you to SSH into the Docker container to make changes if you'd like.
+
+`ssh -p 32 user@localhost`
+
+### Troubleshooting
+
+If you find that this build won't finish. Then you need to break the process down. Do the following:
+
+- Edit Dockerfile. Comment out these two lines:
+
+`#RUN cd /egconfigs && ansible-playbook install_evergreen.yml -v -e "hosts=127.0.0.1"`
+`#ENTRYPOINT cd /egconfigs && ansible-playbook evergreen_restart_services.yml -vvvv -e "hosts=127.0.0.1" && while true; do sleep 1; done`
+
+- UNCOMMENT this line:
+
+`ENTRYPOINT while true; do sleep 1; done`
+
+
+- Then perform the docker build again. This time, it should finish.
+- Run the container
+- ctrl+pq to escape out of the container
+- Get to a shell in the container
+
+  ``docker exec `docker ps --format "{{.ID}}"` /bin/bash``
+
+- Manually execute the command:
+
+  `cd /egconfigs && ansible-playbook install_evergreen.yml -v -e "hosts=127.0.0.1"`
+
+- Watch and see where it errors out, and track down that command in the ansible script. Make tweaks and try again.
 
 
 Everything in this repository is open and free to use under the GNU.

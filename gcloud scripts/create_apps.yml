@@ -30,12 +30,10 @@ spec:
             containerPort: 210
           - name: ssl
             containerPort: 443
-          - name: wbsc
-            containerPort: 7680
-          - name: wbsc2
-            containerPort: 7682
           - name: sip
             containerPort: 6001
+          - name: stunnel
+            containerPort: 6443
         volumeMounts:
           # name must match the volume name below
           - name: nfs
