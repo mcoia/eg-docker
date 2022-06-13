@@ -42,7 +42,7 @@
 
   `PLAY RECAP *******************************************************************************************************************************`
 
-And it will be aparantly hanging. You need to issue this command:
+And it will be apparently hanging. You need to issue this command:
 
 ctrl+pq
 
