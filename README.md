@@ -36,6 +36,12 @@
 
 - NOTE: replace the image hash with yours
 
+### _Optionally_ use docker-compose
+
+`HOST=app.brick.com IMAGE=evergreen docker-compose up -d`
+
+- NOTE: Default VARS are defined in .evn and docker-compose.yml
+
 ### Look for the container finish line
 
 - When the container is ready, you should see something that looks like

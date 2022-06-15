@@ -1,0 +1,18 @@
+# docker-compose.yml
+# 
+# vars defined in .env
+# 
+services:
+  web:
+    image: '${IMAGE}'
+    restart: 'no'
+    hostname: '${HOST}'
+    container_name: 'eg-${HOST}'
+    ports:
+      - '${SSL_PORT}:22'
+      - '${HTTP_PORT}:80'
+      - '${HTTPS_PORT}:443'
+      - '210:210'
+      - '6001:6001'
+    volumes:
+      - '/mnt/evergreen:/mnt/evergreen'
