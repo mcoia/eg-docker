@@ -83,8 +83,6 @@ hosts:
 ##   - "example.com"
 ##   - "example.org"
 ##
-hosts:
-  - "localhost"
 
 ##
 ## route_subdomains: Delegate subdomains to other XMPP servers.
@@ -143,7 +141,7 @@ listen:
     module: ejabberd_c2s
     starttls_required: false
     protocol_options: 'TLS_OPTIONS'
-    max_stanza_size: 2000000
+    max_stanza_size: 10485760
     shaper: c2s_shaper
     access: c2s
   -
@@ -501,9 +499,9 @@ shaper_rules:
   ## Maximum number of simultaneous sessions allowed for a single user:
   max_user_sessions: 10000
   ## Maximum number of offline messages that users can have:
-  max_user_offline_messages:
-    - 5000: admin
-    - 100
+  ##max_user_offline_messages:
+    ##- 5000: admin
+    ##- 100
   ## For C2S connections, all users except admins use the "normal" shaper
   c2s_shaper:
     - none: admin
@@ -721,8 +719,8 @@ modules:
   mod_muc_admin: {}
   ## mod_muc_log: {}
   ## mod_multicast: {}
-  mod_offline:
-    access_max_user_messages: max_user_offline_messages
+  ##mod_offline:
+  ##  access_max_user_messages: max_user_offline_messages
   mod_ping: {}
   ## mod_pres_counter:
   ##   count: 5

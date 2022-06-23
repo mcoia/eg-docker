@@ -70,7 +70,7 @@ listen:
     port: 5222
     ip: "::"
     module: ejabberd_c2s
-    max_stanza_size: 262144
+    max_stanza_size: 10485760
     shaper: c2s_shaper
     access: c2s
     starttls_required: false
@@ -79,7 +79,7 @@ listen:
     port: 5223
     ip: "::"
     module: ejabberd_c2s
-    max_stanza_size: 262144
+    max_stanza_size: 10485760
     shaper: c2s_shaper
     access: c2s
     tls: true
@@ -88,7 +88,7 @@ listen:
     port: 5269
     ip: "::"
     module: ejabberd_s2s_in
-    max_stanza_size: 524288
+    max_stanza_size: 10485760
   -
     port: 5443
     ip: "::"
