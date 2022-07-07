@@ -4,6 +4,7 @@
 # 
 services:
   web:
+    build: .
     image: '${IMAGE}'
     restart: 'no'
     hostname: '${HOST}'
