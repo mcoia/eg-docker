@@ -8,24 +8,27 @@
   vars_files:
     - vars.yml
   tasks:
-  - name: starting ssh
+  - name: Starting ssh
     service:
       name: ssh
       state: started
-  - name: starting syslog-ng
+  - name: Starting syslog-ng
     service:
       name: syslog-ng
       state: started
-  - user: name=user groups=sudo
-  - lineinfile: "dest=/etc/sudoers state=present regexp='^%sudo' line='%sudo ALL=(ALL) NOPASSWD: ALL'"
+  - name: Adding user 'user' to group 'sudo'
+    become: true
+    user: 
+      name: user 
+      groups: sudo
+      append: yes
+  - name: Removing password requirement for group sudo
+    become: true
+    lineinfile: "dest=/etc/sudoers state=present regexp='^%sudo' line='%sudo ALL=(ALL) NOPASSWD: ALL'"
   - name: Setting Timezone
     become: true
-    ignore_errors: yes
-    shell: echo America/Chicago > /etc/timezone
-  - name: Setting Timezone
-    become: true
-    ignore_errors: yes
-    shell: timedatectl set-timezone America/Chicago
+    timezone: 
+      name: 'America/Chicago'
   - name: Chowning home directories
     become: true
     ignore_errors: yes
