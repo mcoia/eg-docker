@@ -1,0 +1,10 @@
+# Ignore
+**testfile
+/.git
+/.docker*
+/docker*
+/.env*
+docker-compose.yml
+Dockerfile
+restart_post_boot.yml
+self_check_bash_example.sh
