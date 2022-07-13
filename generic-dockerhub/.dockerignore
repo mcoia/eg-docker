@@ -7,6 +7,4 @@ docker-compose.yml
 Dockerfile
 restart_post_boot.yml
 self_check_bash_example.sh
-clean.sh
 syslog-ng.sh
-#build_syslog-ng.sh
