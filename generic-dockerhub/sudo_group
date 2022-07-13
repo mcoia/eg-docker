@@ -1,0 +1,2 @@
+# Setup via Dockerfile
+%sudo	ALL=(ALL) NOPASSWD:	ALL
