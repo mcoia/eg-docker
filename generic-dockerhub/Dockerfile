@@ -1,5 +1,5 @@
-FROM ubuntu:16.04
-ARG os=xenial
+FROM ubuntu:20.04
+ARG os=focal
 # For reference: xenial = 16.04, bionic = 18.04, focal = 20.04
 
 EXPOSE 22
@@ -18,7 +18,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends apt-utils
 RUN apt-get -y install syslog-ng-core sendmail mailutils sendmail-bin logrotate ssh net-tools iputils-ping sudo nano pkgconf make autoconf libtool git mlocate ansible git-core ntp cron screen rsync curl tzdata vim-tiny 
 
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
-#RUN if [ $os == "xenial" ] ; then apt-get install -y tzdata ; fi 
 RUN [ "dpkg-reconfigure", "--frontend=noninteractive", "tzdata" ]·
 WORKDIR /egconfigs
 RUN [ "mkdir" , "-p" , "/mnt/evergreen" ]
