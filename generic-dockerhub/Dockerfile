@@ -1,5 +1,5 @@
-FROM ubuntu:20.04
-ARG os=focal
+FROM ubuntu:16.04
+ARG os=xenial
 # For reference: xenial = 16.04, bionic = 18.04, focal = 20.04
 
 EXPOSE 22
@@ -14,10 +14,11 @@ RUN useradd evergreen -m -s /bin/bash
 #RUN apt-get update
 ARG DEBIAN_FRONTEND=noninteractive
 ARG TZ=America/New_York
-RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 RUN apt-get update && apt-get install -y --no-install-recommends apt-utils
-RUN apt-get -y install syslog-ng-core sendmail mailutils sendmail-bin logrotate ssh net-tools iputils-ping sudo nano make autoconf libtool git mlocate ansible git-core ntp cron screen rsync curl vim-tiny
-#RUN if [ $os != "xenial" ] ; then dpkg-reconfigure --frontend noninteractive tzdata ; fi
+RUN apt-get -y install syslog-ng-core sendmail mailutils sendmail-bin logrotate ssh net-tools iputils-ping sudo nano pkgconf make autoconf libtool git mlocate ansible git-core ntp cron screen rsync curl tzdata vim-tiny 
+
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+#RUN if [ $os == "xenial" ] ; then apt-get install -y tzdata ; fi 
 RUN [ "dpkg-reconfigure", "--frontend=noninteractive", "tzdata" ]·
 WORKDIR /egconfigs
 RUN [ "mkdir" , "-p" , "/mnt/evergreen" ]
@@ -40,6 +41,8 @@ RUN apt-get clean && apt-get autoclean && apt-get autoclean && rm -rf /var/tmp/*
 
 CMD [ "whoami" ]
 
-#CMD echo RUN ansible-playbook install_evergreen.yml -v -e "hosts=127.0.0.1"
+CMD echo RUN ansible-playbook install_evergreen.yml -v -e "host=127.0.0.1" -c local 
+
+
 #ENTRYPOINT cd /egconfigs && ansible-playbook evergreen_restart_services.yml -vvvv -e "hosts=127.0.0.1" && while true; do sleep 1; done
 #ENTRYPOINT while true; do sleep 1; done

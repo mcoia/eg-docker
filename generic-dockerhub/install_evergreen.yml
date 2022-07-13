@@ -1,9 +1,7 @@
 ---
 #ansible-playbook /mnt/evergreen/playbooks/restart_app_services.yml --private-key /home/user/.ssh/id_rsa -vvvv -e "hosts=192.168.12.49"
 
-- hosts: '{{hosts}}'
-  connection: local
-  remote_user: user
+- hosts: '{{host}}'
   become_method: sudo
   vars_files:
     - vars.yml
@@ -91,11 +89,6 @@
     become_user: opensrf
     shell: cd /home/opensrf/repos/OpenSRF && git cherry-pick {{ item }}
     with_items: "{{ OpenSRF_cherry_picks }}"
-  - name: Install pkgconf just in case
-    become: true
-    apt:
-      name: pkgconf
-      state: present
   - name: Gut those peski packages that we don't need using Pete's sed
     become: true
     shell: cd /home/opensrf/repos/OpenSRF && /usr/bin/sed -i '/python-memcache/ s/python-memcache//' src/extras/Makefile.install && /usr/bin/sed -i '/python-pyxmpp/ s/python-pyxmpp//' src/extras/Makefile.install
