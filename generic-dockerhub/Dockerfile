@@ -11,7 +11,6 @@ EXPOSE 6001
 RUN useradd user -G sudo -m -s /bin/bash
 RUN useradd opensrf -m -s /bin/bash
 RUN useradd evergreen -m -s /bin/bash
-#RUN apt-get update
 ARG DEBIAN_FRONTEND=noninteractive
 ARG TZ=America/New_York
 RUN apt-get update && apt-get install -y --no-install-recommends apt-utils

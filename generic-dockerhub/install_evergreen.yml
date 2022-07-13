@@ -14,24 +14,22 @@
     service:
       name: syslog-ng
       state: started
-  - name: Adding user 'user' to group 'sudo'
-    become: true
-    user: 
-      name: user 
-      groups: sudo
-      append: yes
-  - name: Removing password requirement for group sudo
-    become: true
-    lineinfile: "dest=/etc/sudoers state=present regexp='^%sudo' line='%sudo ALL=(ALL) NOPASSWD: ALL'"
   - name: Setting Timezone
     become: true
     timezone: 
       name: 'America/Chicago'
   - name: Chowning home directories
-    become: true
-    ignore_errors: yes
-    shell: chown -R user:user /home/user && chown -R evergreen:evergreen /home/evergreen && chown -R opensrf:opensrf /home/opensrf && chown -R ubuntu:ubuntu /home/ubuntu && chown -R mcoia:mcoia /home/mcoia
-## Fix ulimits
+    file:
+      path: "/home/{{ item }}"
+      owner: "{{ item }}"
+      group: "{{ item }}"
+      recurse: yes
+    loop:
+       - user
+       - evergreen
+       - opensrf
+         #       - mcoia 
+         #       - ubuntu 
   - name: Setting SOFT limit for number of processes (nproc) to 65535 in /etc/security/limits.conf
     lineinfile: "dest=/etc/security/limits.conf state=present regexp='\\* soft     nproc' line='* soft     nproc          65535'"
   - name: Setting HARD limit for number of processes (nproc) to 65535 in /etc/security/limits.conf
@@ -44,7 +42,7 @@
     lineinfile: "dest=/etc/systemd/system.conf state=present regexp='DefaultLimitNOFILE' line='DefaultLimitNOFILE=65536'"
   - name: Setting DefaultLimitNOFILE to 65535 in /etc/systemd/user.conf
     lineinfile: "dest=/etc/systemd/user.conf state=present regexp='DefaultLimitNOFILE' line='DefaultLimitNOFILE=65536'"
-  - name: Creating repo folder
+  - name: Creating OpenSRF repo folder
     become_user: opensrf
     file: path=/home/opensrf/repos state=directory owner=opensrf group=opensrf mode=0775
   - stat: path=/home/opensrf/repos/OpenSRF
