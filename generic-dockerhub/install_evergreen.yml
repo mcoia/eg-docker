@@ -8,6 +8,9 @@
   vars_files:
     - vars.yml
   tasks:
+  - name: Prints user ansible env
+    ansible.builtin.debug:
+      msg: "{{ ansible_env }}"
   - name: Starting ssh
     service:
       name: ssh
