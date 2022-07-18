@@ -41,6 +41,10 @@
 `HOST=app.brick.com IMAGE=evergreen docker-compose up -d`
 
 - NOTE: Default VARS are defined in .evn and docker-compose.yml
+- To try building with docker's BuildKit set this variable:
+
+# Currently broken on OpenSRF build
+export DOCKER_BUILDKIT=1
 
 ### Look for the container finish line
 
