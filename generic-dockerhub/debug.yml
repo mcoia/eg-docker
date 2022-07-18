@@ -1,0 +1,9 @@
+---
+- name: Print hostname
+  ansible.builtin.debug:
+    msg: "{{ ansible_hostname }}"
+- name: Prints user ansible env
+  ansible.builtin.debug:
+    msg: "{{ ansible_env }}"
+
+...

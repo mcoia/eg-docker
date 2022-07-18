@@ -39,8 +39,10 @@ RUN apt-get clean && apt-get autoclean && apt-get autoclean && rm -rf /var/tmp/*
 
 CMD [ "whoami" ]
 
-CMD echo RUN ansible-playbook install_evergreen.yml -v -e "host=127.0.0.1" -c local 
-
-
+CMD echo RUN ansible-playbook install_evergreen-mini.yml -v -e "host=127.0.0.1" -c local 
+RUN ansible-playbook install_evergreen.yml -v -e "host=127.0.0.1" -c local 
 #ENTRYPOINT cd /egconfigs && ansible-playbook evergreen_restart_services.yml -vvvv -e "hosts=127.0.0.1" && while true; do sleep 1; done
+ENTRYPOINT while true; do sleep 1; done
+
+
 #ENTRYPOINT while true; do sleep 1; done

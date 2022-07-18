@@ -4,6 +4,7 @@
   vars_files:
     - vars.yml
   tasks:
+    - include: debug.yml
     - name: Starting ssh
       service:
         name: ssh
@@ -16,7 +17,7 @@
       become: true
       timezone:
         name: 'America/Chicago'
-    - name: Chowning home directories
+    - name: Setting up home directories
       file:
         path: "/home/{{ item }}"
         owner: "{{ item }}"
@@ -69,7 +70,8 @@
         owner: opensrf
         group: opensrf
         mode: 0775
-    - stat: path=/home/opensrf/repos/OpenSRF
+    - stat: 
+        path: /home/opensrf/repos/OpenSRF
       register: opensrfgit
     - stat:
         path: /home/opensrf/repos/Evergreen
