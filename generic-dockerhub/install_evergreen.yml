@@ -5,6 +5,7 @@
     - vars.yml
   tasks:
     - include: debug.yml
+    - include: adjust_limits.yml
     - name: Starting ssh
       service:
         name: ssh
@@ -27,41 +28,6 @@
         - user
         - evergreen
         - opensrf
-    - name: Setting SOFT limit (nproc) to 65535 in /etc/security/limits.conf
-      lineinfile:
-        dest=/etc/security/limits.conf
-        state=present
-        regexp='\\* soft     nproc'
-        line='* soft     nproc          65535'
-    - name: Setting HARD limit (nproc) to 65535 in /etc/security/limits.conf
-      lineinfile:
-        dest=/etc/security/limits.conf
-        state=present regexp='\\* hard     nproc'
-        line='* hard     nproc          65535'
-    - name: Setting SOFT limit (nfiles) to 65535 in /etc/security/limits.conf
-      lineinfile:
-        dest=/etc/security/limits.conf
-        state=present
-        regexp='\\* soft     nofile'
-        line='* soft     nofile          65535'
-    - name: Setting HARD limit (nfiles) to 65535 in /etc/security/limits.conf
-      lineinfile:
-        dest=/etc/security/limits.conf
-        state=present
-        regexp='\\* hard     nofile'
-        line='* hard     nofile          65535'
-    - name: Setting DefaultLimitNOFILE to 65535 in /etc/systemd/system.conf
-      lineinfile:
-        dest=/etc/systemd/system.conf
-        state=present
-        regexp='DefaultLimitNOFILE'
-        line='DefaultLimitNOFILE=65536'
-    - name: Setting DefaultLimitNOFILE to 65535 in /etc/systemd/user.conf
-      lineinfile:
-        dest=/etc/systemd/user.conf
-        state=present
-        regexp='DefaultLimitNOFILE'
-        line='DefaultLimitNOFILE=65536'
     - name: Creating OpenSRF repo folder
       become_user: opensrf
       file:
@@ -70,45 +36,43 @@
         owner: opensrf
         group: opensrf
         mode: 0775
-    - stat: 
-        path: /home/opensrf/repos/OpenSRF
-      register: opensrfgit
-    - stat:
-        path: /home/opensrf/repos/Evergreen
-      register: evergreengit
     - name: Cloning Opensrf git
-      when: opensrfgit.stat.isdir is not defined
       become: true
       become_user: opensrf
-      environment:
-        PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
-      shell: cd /home/opensrf/repos && git clone git://git.evergreen-ils.org/OpenSRF.git
-    - name: clone Evergreen repo
-      when: evergreengit.stat.isdir is not defined
-      become: true
-      become_user: opensrf
-      environment:
-        PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
-      shell: cd /home/opensrf/repos && git clone git://git.evergreen-ils.org/Evergreen.git
+      ansible.builtin.git:
+        repo: git://git.evergreen-ils.org/working/OpenSRF.git
+        dest: /home/opensrf/repos/OpenSRF
+        single_branch: true
+        version: '{{ opensrf_git_branch }}'
+
+    - name: Cloning Evergreen repo
+        become: true
+        become_user: opensrf
+      ansible.builtin.git:
+        repo:  git://git.evergreen-ils.org/Evergreen.git
+        dest:  /home/opensrf/repos/Evergreen
+        single_branch: yes
+        version: master
     - name: OpenSRF Git Add remote
       become: true
       become_user: opensrf
       shell: cd /home/opensrf/repos/OpenSRF && git remote add -f working git://git.evergreen-ils.org/working/OpenSRF.git
-      ignore_errors: yes
+      ignore_errors: true
     - name: OpenSRF Git Add remote
       become: true
       become_user: opensrf
       shell: cd /home/opensrf/repos/OpenSRF && git remote set-url --push working git@git.evergreen-ils.org:working/OpenSRF.git
-      ignore_errors: yes
+      ignore_errors: true
     - name: OpenSRF Checkout Branch
       become: true
       become_user: opensrf
-      shell: cd /home/opensrf/repos/OpenSRF && git fetch --all && git pull && git checkout {{opensrf_git_branch}}
+      shell: cd /home/opensrf/repos/OpenSRF && git fetch --all && git pull && git checkout
     - name: OpenSRF Git Cherry pick loop Debug
       become: true
       become_user: opensrf
-      debug: msg="Cherry Picking {{ item }}"
-      with_items: "{{ OpenSRF_cherry_picks }}"
+      debug: 
+        msg='Cherry Picking {{ item }}'
+      with_items: '{{ OpenSRF_cherry_picks }}'
     - name: OpenSRF Git Cherry pick loop
       become: true
       become_user: opensrf

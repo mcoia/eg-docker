@@ -1,0 +1,45 @@
+---
+- name: Setting SOFT limit (nproc) to 65535 in /etc/security/limits.conf
+  lineinfile:
+    dest=/etc/security/limits.conf
+    state=present
+    regexp='\\* soft     nproc'
+    line='* soft     nproc          65535'
+- name: Setting HARD limit (nproc) to 65535 in /etc/security/limits.conf
+  lineinfile:
+    dest=/etc/security/limits.conf
+    state=present regexp='\\* hard     nproc'
+    line='* hard     nproc          65535'
+- name: Setting SOFT limit (nfiles) to 65535 in /etc/security/limits.conf
+  lineinfile:
+    dest=/etc/security/limits.conf
+    state=present
+    regexp='\\* soft     nofile'
+    line='* soft     nofile          65535'
+- name: Setting HARD limit (nfiles) to 65535 in /etc/security/limits.conf
+  lineinfile:
+    dest=/etc/security/limits.conf
+    state=present
+    regexp='\\* hard     nofile'
+    line='* hard     nofile          65535'
+- name: Setting DefaultLimitNOFILE to 65535 in /etc/systemd/system.conf
+  lineinfile:
+    dest=/etc/systemd/system.conf
+    state=present
+    regexp='DefaultLimitNOFILE'
+    line='DefaultLimitNOFILE=65536'
+- name: Setting DefaultLimitNOFILE to 65535 in /etc/systemd/user.conf
+  lineinfile:
+    dest=/etc/systemd/user.conf
+    state=present
+    regexp='DefaultLimitNOFILE'
+    line='DefaultLimitNOFILE=65536'
+- name: Creating OpenSRF repo folder
+  become_user: opensrf
+  file:
+    path: /home/opensrf/repos
+    state: directory
+    owner: opensrf
+    group: opensrf
+    mode: 0775
+...
