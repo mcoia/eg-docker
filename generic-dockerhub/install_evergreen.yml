@@ -36,6 +36,8 @@
         owner: opensrf
         group: opensrf
         mode: 0775
+    # See EG notes on git setup
+    # https://wiki.evergreen-ils.org/doku.php?id=dev:git
     - name: Cloning Opensrf git
       become: true
       become_user: opensrf
@@ -46,8 +48,8 @@
         version: '{{ opensrf_git_branch }}'
 
     - name: Cloning Evergreen repo
-        become: true
-        become_user: opensrf
+      become: true
+      become_user: opensrf
       ansible.builtin.git:
         repo:  git://git.evergreen-ils.org/Evergreen.git
         dest:  /home/opensrf/repos/Evergreen
