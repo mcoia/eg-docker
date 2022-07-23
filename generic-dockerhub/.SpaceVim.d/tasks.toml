@@ -1,0 +1,16 @@
+[clean_docker]
+  command = 'docker-clean.sh'
+  useStdout = true
+[docker-buildkit]
+  command = 'docker-compose build   --no-cache'
+  useStdout = true
+  DOCKER_BUILDKIT=1 
+
+#DOCKER_BUILDKIT=1 docker-compose build   --no-cache 
+# DOCKER_BUILDKIT=1 docker-compose up -d --force-recreate
+# DOCKER_BUILDKIT=1 docker-compose build   --no-cache
+ # create --use --name larger_log --driver-opt env.BUILDKIT_STEP_LOG_MAX_SIZE=50000000
+# docker buildx create --use --name larger_log --driver-opt env.BUILDKIT_STEP_LOG_MAX_SIZE=50000000
+#DOCKER_BUILDKIT=1 docker-compose build   --no-cache
+# DOCKER_BUILDKIT=1 docker-compose build   --no-cache
+# DOCKER_BUILDKIT=1 docker-compose build   --no-cache
