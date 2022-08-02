@@ -116,15 +116,24 @@
       shell: cp /egconfigs/hosts /etc/hosts
       ignore_errors: yes
     - name: Ensure ejabberd private/public networks are accounted for in hosts file
-      become: true
-      shell: echo 127.0.1.2       public.localhost        public >> /etc/hosts
-    - name: Ensure ejabberd private/public networks are accounted for in hosts file
-      become: true
-      shell: echo 127.0.1.3       private.localhost       private >> /etc/hosts
-    - name: Add local IP to hosts
-      become: true
-      shell: echo {{ansible_all_ipv4_addresses.0}} {{ansible_fqdn}} {{ansible_hostname}} >> /etc/hosts
-      ignore_errors: yes
+      ansible.builtin.blockinfile:
+        path: /etc/hosts
+        block: |
+            {{ item.ip }} {{ item.name1 }} {{ item.name2 }}
+        marker: "# {mark} ANSIBLE MANAGED BLOCK {{ item.name }}"
+        loop:
+          - {name1: public.localhost, name2: public, ip: 127.0.1.2}
+          - {name1: private.localhost, name2: private, ip: 127.0.1.3}
+    # - name: Ensure ejabberd private/public networks are accounted for in hosts file
+      # become: true
+      # shell: echo 127.0.1.2       public.localhost        public >> /etc/hosts
+    # - name: Ensure ejabberd private/public networks are accounted for in hosts file
+      # become: true
+      # shell: echo 127.0.1.3       private.localhost       private >> /etc/hosts
+    # - name: Add local IP to hosts
+      # become: true
+      # shell: echo {{ansible_all_ipv4_addresses.0}} {{ansible_fqdn}} {{ansible_hostname}} >> /etc/hosts
+      # ignore_errors: yes
     - name: Put the ejabberd config into place
       become: true
       shell: cp /egconfigs/ejabberd_{{ubuntu_version}}.yml /etc/ejabberd/ejabberd.yml
