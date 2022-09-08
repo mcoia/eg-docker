@@ -102,6 +102,13 @@ If you find that this build won't finish. Then you need to break the process dow
 
 - Watch and see where it errors out, and track down that command in the ansible script. Make tweaks and try again.
 
+#### Mac M1
+
+If you are using a Mac M1 laptop with ARM architecture, you will need to emulate x86 to install Evergreen:
+
+- Your build command should look like: `docker build --platform linux/x86_64 .`
+- Your run command should look like: `docker run -it -p 80:80 -p 443:443 -p 32:22 -h app.brick.com --platform linux/x86_64 51d5369e7d89`
+
 
 Everything in this repository is open and free to use under the GNU.
 
