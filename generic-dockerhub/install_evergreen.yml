@@ -11,31 +11,52 @@
   - name: Prints user ansible env
     ansible.builtin.debug:
       msg: "{{ ansible_env }}"
+
   - name: Starting ssh
+    ignore_errors: yes
     service:
       name: ssh
       state: started
+
+# service module is broken for ansible/jammy/docker
+  - name: Starting ssh manually
+    ignore_errors: yes
+    shell: /etc/init.d/ssh restart
+    when: ubuntu_version|lower == 'jammy'
+
   - name: Starting syslog-ng
+    ignore_errors: yes
     service:
       name: syslog-ng
       state: started
+
+# service module is broken for ansible/jammy/docker
+  - name: Starting syslog-ng manually
+    ignore_errors: yes
+    shell: /etc/init.d/syslog-ng restart
+    when: ubuntu_version|lower == 'jammy'
+
   - name: Adding user 'user' to group 'sudo'
     become: true
-    user: 
+    user:
       name: user 
       groups: sudo
       append: yes
+
   - name: Removing password requirement for group sudo
     become: true
     lineinfile: "dest=/etc/sudoers state=present regexp='^%sudo' line='%sudo ALL=(ALL) NOPASSWD: ALL'"
+
   - name: Setting Timezone
     become: true
     timezone: 
       name: 'America/Chicago'
+
   - name: Chowning home directories
     become: true
     ignore_errors: yes
     shell: chown -R user:user /home/user && chown -R evergreen:evergreen /home/evergreen && chown -R opensrf:opensrf /home/opensrf && chown -R ubuntu:ubuntu /home/ubuntu && chown -R mcoia:mcoia /home/mcoia
+
 ## Fix ulimits
   - name: Setting SOFT limit for number of processes (nproc) to 65535 in /etc/security/limits.conf
     lineinfile: "dest=/etc/security/limits.conf state=present regexp='\\* soft     nproc' line='* soft     nproc          65535'"
@@ -49,6 +70,7 @@
     lineinfile: "dest=/etc/systemd/system.conf state=present regexp='DefaultLimitNOFILE' line='DefaultLimitNOFILE=65536'"
   - name: Setting DefaultLimitNOFILE to 65535 in /etc/systemd/user.conf
     lineinfile: "dest=/etc/systemd/user.conf state=present regexp='DefaultLimitNOFILE' line='DefaultLimitNOFILE=65536'"
+
   - name: Creating repo folder
     become_user: opensrf
     file: path=/home/opensrf/repos state=directory owner=opensrf group=opensrf mode=0775
@@ -56,6 +78,7 @@
     register: opensrfgit
   - stat: path=/home/opensrf/repos/Evergreen
     register: evergreengit
+
   - name: Cloning Opensrf git
     when: opensrfgit.stat.isdir is not defined
     become: true
@@ -63,6 +86,7 @@
     environment:
       PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
     shell: cd /home/opensrf/repos && git clone git://git.evergreen-ils.org/OpenSRF.git
+
   - name: clone Evergreen repo
     when: evergreengit.stat.isdir is not defined
     become: true
@@ -70,39 +94,46 @@
     environment:
       PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
     shell: cd /home/opensrf/repos && git clone git://git.evergreen-ils.org/Evergreen.git
+
   - name: OpenSRF Git Add remote
     become: true
     become_user: opensrf
     shell: cd /home/opensrf/repos/OpenSRF && git remote add -f working git://git.evergreen-ils.org/working/OpenSRF.git
     ignore_errors: yes
+
   - name: OpenSRF Git Add remote
     become: true
     become_user: opensrf
     shell: cd /home/opensrf/repos/OpenSRF && git remote set-url --push working git@git.evergreen-ils.org:working/OpenSRF.git
     ignore_errors: yes
+
   - name: OpenSRF Checkout Branch
     become: true
     become_user: opensrf
     shell: cd /home/opensrf/repos/OpenSRF && git fetch --all && git pull && git checkout {{opensrf_git_branch}}
+
   - name: OpenSRF Git Cherry pick loop Debug
     become: true
     become_user: opensrf
     debug: msg="Cherry Picking {{ item }}"
     with_items: "{{ OpenSRF_cherry_picks }}"
+
   - name: OpenSRF Git Cherry pick loop
     become: true
     become_user: opensrf
     shell: cd /home/opensrf/repos/OpenSRF && git cherry-pick {{ item }}
     with_items: "{{ OpenSRF_cherry_picks }}"
+
   - name: Install pkgconf just in case
     become: true
     apt:
       name: pkgconf
       state: present
+
   - name: Gut those peski packages that we don't need using Pete's sed
     become: true
     shell: cd /home/opensrf/repos/OpenSRF && /usr/bin/sed -i '/python-memcache/ s/python-memcache//' src/extras/Makefile.install && /usr/bin/sed -i '/python-pyxmpp/ s/python-pyxmpp//' src/extras/Makefile.install
-    when: ubuntu_version|lower == 'focal'
+    when: ubuntu_version|lower == 'jammy' or ubuntu_version|lower == 'focal'
 
   - name: OpenSRF needs to be older to support xenial
     become: true
@@ -111,7 +142,7 @@
   
   - name: Install OpenSRF prereqs
     become: true
-    shell: apt-get update && cd /home/opensrf/repos/OpenSRF && export PERL_MM_USE_DEFAULT=1 && autoreconf -i && make -f src/extras/Makefile.install ubuntu-{{ ubuntu_version }} && chown opensrf:opensrf -R .
+    shell: apt-get update && cd /home/opensrf/repos/OpenSRF && export PERL_MM_USE_DEFAULT=1 && autoreconf -i && make -f src/extras/Makefile.install ubuntu-{{ ubuntu_version|lower }} && chown opensrf:opensrf -R .
 
   - name: Switch OpenSRF branch back to desired version
     become: true
@@ -125,11 +156,13 @@
     environment:
       PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
     shell: cd /home/opensrf/repos/OpenSRF && autoreconf -i && ./configure --prefix={{openils_path}} --sysconfdir={{openils_path}}/conf --with-websockets-port=443 && make
+
   - name: Make install OpenSRF
     become: true
     environment:
       PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
     shell: cd /home/opensrf/repos/OpenSRF && make install && chown -R opensrf:opensrf {{openils_path}}
+
   - name: Setup host file
     become: true
     shell: cp /egconfigs/hosts /etc/hosts
@@ -144,67 +177,89 @@
     become: true
     shell: echo {{ansible_all_ipv4_addresses.0}} {{ansible_fqdn}} {{ansible_hostname}} >> /etc/hosts
     ignore_errors: yes
+
   - name: Put the ejabberd config into place
     become: true
-    shell: cp /egconfigs/ejabberd_{{ubuntu_version}}.yml /etc/ejabberd/ejabberd.yml
+    shell: cp /egconfigs/ejabberd_{{ubuntu_version|lower}}.yml /etc/ejabberd/ejabberd.yml
+
   - name: update /etc/ld.so.conf.d/opensrf.conf and ldconfig
     become: true
     shell: echo {{openils_path}}/lib > /etc/ld.so.conf.d/opensrf.conf && ldconfig
+
   - name: Kill ejabberd
     ignore_errors: yes
     shell: "/bin/ps -ef | /bin/grep ejabber | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9"
   - name: Starting ejabberd
+    ignore_errors: yes
     service:
       name: ejabberd
       state: started
+# service module is broken for ansible/jammy/docker
+  - name: Starting ejabberd manually
+    ignore_errors: yes
+    shell: /etc/init.d/ejabberd start
+    when: ubuntu_version|lower == 'jammy'
+
   - name: Pausing for ejabberd
     pause: seconds=2
-  - name: Setup ejabberd users
+
+  - name: Remove ejabberd users
     become: true
     become_user: ejabberd
     shell: ejabberdctl unregister router private.localhost && ejabberdctl unregister opensrf private.localhost && ejabberdctl unregister router public.localhost && ejabberdctl unregister opensrf public.localhost
-    when: ubuntu_version|lower == 'bionic' or ubuntu_version|lower == 'focal'
+    when: ubuntu_version|lower == 'bionic' or ubuntu_version|lower == 'focal' or ubuntu_version|lower == 'jammy'
+
   - name: Setup ejabberd users
     become: true
     become_user: ejabberd
     shell: ejabberdctl register router private.localhost {{ejabberd_password}} && ejabberdctl register opensrf private.localhost {{ejabberd_password}} && ejabberdctl register router public.localhost {{ejabberd_password}} && ejabberdctl register opensrf public.localhost {{ejabberd_password}}
-    when: ubuntu_version|lower == 'bionic' or ubuntu_version|lower == 'focal'
-  - name: Setup ejabberd users as root
+    when: ubuntu_version|lower == 'bionic' or ubuntu_version|lower == 'focal' or ubuntu_version|lower == 'jammy'
+
+  - name: Setup ejabberd users as root (if xenial)
     become: true
     shell: ejabberdctl unregister router private.localhost && ejabberdctl unregister opensrf private.localhost && ejabberdctl unregister router public.localhost && ejabberdctl unregister opensrf public.localhost
     when: ubuntu_version|lower == 'xenial'
-  - name: Setup ejabberd users as root
+
+  - name: Setup ejabberd users as root (if xenial)
     become: true
     shell: ejabberdctl register router private.localhost {{ejabberd_password}} && ejabberdctl register opensrf private.localhost {{ejabberd_password}} && ejabberdctl register router public.localhost {{ejabberd_password}} && ejabberdctl register opensrf public.localhost {{ejabberd_password}}
     when: ubuntu_version|lower == 'xenial'
+
   - name: Copy example opensrf_core.xml
     become: true
     become_user: opensrf
     shell: cp {{openils_path}}/conf/opensrf_core.xml.example {{openils_path}}/conf/opensrf_core.xml
+
   - lineinfile: "dest={{openils_path}}/conf/opensrf_core.xml state=present regexp='<passwd>password</passwd>' line='<passwd>{{ejabberd_password}}</passwd>'"
   - lineinfile: "dest={{openils_path}}/conf/opensrf_core.xml state=present regexp='<passwd>password</passwd>' line='<passwd>{{ejabberd_password}}</passwd>'"
   - lineinfile: "dest={{openils_path}}/conf/opensrf_core.xml state=present regexp='<password>password</password>' line='<password>{{ejabberd_password}}</password>'"
   - lineinfile: "dest={{openils_path}}/conf/opensrf_core.xml state=present regexp='<password>password</password>' line='<password>{{ejabberd_password}}</password>'"
+
   - name: Setup .srfsh.xml
     become: true
     become_user: opensrf
     shell: cp {{openils_path}}/conf/srfsh.xml.example ~/.srfsh.xml && cp {{openils_path}}/conf/opensrf.xml.example {{openils_path}}/conf/opensrf.xml
   - lineinfile: "dest=/home/opensrf/.srfsh.xml state=present regexp='<passwd>' line='<passwd>{{ejabberd_password}}</passwd>'"
   - lineinfile: "dest=/home/opensrf/.bashrc state=present line='export PATH=$PATH:{{openils_path}}/bin'"
+
   - name: Start Opensrf
     become: true
     become_user: opensrf
     environment:
       PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
     shell: osrf_control --localhost --start-all
+
   - name: Install unzip
     apt: name=unzip
+
   - name: Download websocketsd
     become: true
     shell: cd /tmp && wget 'https://github.com/joewalnes/websocketd/releases/download/v0.3.0/websocketd-0.3.0-linux_amd64.zip'
+
   - name: Unzip Websockets
     become: true
     shell: cd /tmp && unzip -u websocketd-0.3.0-linux_amd64.zip && cp websocketd /usr/local/bin/
+
 # # ### OPENSRF IS FINISHED
 
 ### STARTING EVERGREEN SECTION
@@ -213,6 +268,7 @@
     become_user: opensrf
     shell: cd /home/opensrf/repos/Evergreen && git remote add -f working git://git.evergreen-ils.org/working/Evergreen.git
     ignore_errors: yes
+
   - name: Evergreen Git Add remote
     become: true
     become_user: opensrf
@@ -222,7 +278,7 @@
 ### if you chose bionic but Evergreen version < 3.3, then we need to install this step with a newer version of evergreen
   - name: register special case
     set_fact: switch_to_newer_version='yes'
-    when: (ubuntu_version == 'focal' or ubuntu_version == 'bionic') and ( (evergreen_major_version|int == 3 and evergreen_minor_version|int < 6) or (evergreen_major_version|int < 3) )
+    when: (ubuntu_version|lower == 'focal' or ubuntu_version|lower == 'bionic' or ubuntu_version|lower == 'jammy') and ( (evergreen_major_version|int == 3 and evergreen_minor_version|int < 6) or (evergreen_major_version|int < 3) )
 
   - name: Evergreen Git fetch all
     become: true
@@ -261,27 +317,33 @@
     become_user: opensrf
     shell: cd /home/opensrf/repos/Evergreen && git cherry-pick {{ item }}
     with_items: "{{ Evergreen_cherry_picks }}"
+
   - name: Setup Evergreen prerequisites 
     become: true
     shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}
     when: switch_to_newer_version is not defined
+
   - name: Setup Evergreen prerequisites 2nd trip through
     become: true
     shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}
     when: switch_to_newer_version is not defined
+
   - name: Setup Evergreen developer packages
     become: true
     shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}-developer
     when: switch_to_newer_version is not defined
+
 ## Install Database
-  - name: Setup Evergreen Postgres packages
+  - name: Setup Evergreen Postgres packages postgres-server-ubuntu-{{ ubuntu_version }}-{{ postgres_version }}
     become: true
     shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install postgres-server-ubuntu-{{ ubuntu_version }}-{{ postgres_version }}
     when: postgres_version|int > 9.6
-  - name: Setup Evergreen Postgres packages
+
+  - name: Setup Evergreen Postgres packages postgres-server-ubuntu-{{ ubuntu_version }}
     become: true
     shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install postgres-server-ubuntu-{{ ubuntu_version }}
     when: postgres_version|int < 10 and switch_to_newer_version is not defined
+
   - name: Allow postgres to talk outside
     become: true
     ignore_errors: yes
@@ -290,38 +352,53 @@
     become: true
     ignore_errors: yes
     shell: cp /egconfigs/postgresql.conf /etc/postgresql/{{ postgres_version }}/main
+
   - name: Ensure that plperl is installed
     become: true
     ignore_errors: yes
     shell: apt-get -y install postgresql-plperl-{{postgres_version}}
+
   - name: Disable transparent_hugepages in grub
     become: true
     ignore_errors: yes
     lineinfile: dest=/etc/default/grub state=present regexp='GRUB_CMDLINE_LINUX_DEFAULT' line='GRUB_CMDLINE_LINUX_DEFAULT="transparent_hugepage=never"'
+
   - name: Disable transparent_hugepages
     become: true
     ignore_errors: yes
     shell: echo never > /sys/kernel/mm/transparent_hugepage/enabled
+
   - name: i18n prereqs
     become: true
     ignore_errors: yes
     shell: apt-get -y install translate-toolkit python-dev python-setuptools python-simplejson python-lxml liblocale-maketext-lexicon-perl
     when: evergreen_major_version|int > 2 and evergreen_minor_version|int > 5
+
   - name: i18n prereqs
     become: true
     ignore_errors: yes
     shell: apt-get -y install python-levenshtein python-polib
     when: (evergreen_major_version|int > 2 and evergreen_minor_version|int > 5) and ubuntu_version != 'focal'
+
   - name: update PO files
     become: true
     become_user: opensrf
     ignore_errors: yes
     shell: cd /home/opensrf/repos/Evergreen/build/i18n && mkdir locale && make newpot && make LOCALE=fr-CA updatepo && make LOCALE=es-ES updatepo && make LOCALE=cs-CZ updatepo && make LOCALE=ar-JO updatepo && make LOCALE=fr-CA install && make LOCALE=es-ES install && make LOCALE=cs-CZ install && make LOCALE=ar-JO install
     when: evergreen_major_version|int > 2 and evergreen_minor_version|int > 5
+
   - name: starting postgres
+    ignore_errors: yes
     service:
       name: postgresql
       state: started
+
+# service module is broken for ansible/jammy/docker
+  - name: starting postgres manually
+    ignore_errors: yes
+    shell: /etc/init.d/postgresql restart
+    when: ubuntu_version|lower == 'jammy'
+
   - name: Setup Evergreen database
     become: true
     become_user: postgres
@@ -403,7 +480,6 @@
     shell: cd {{openils_path}}/var/web/xul && ln -sf {{evergreen_stamp_id}}/server server && chown -R opensrf:opensrf {{openils_path}}
     when: install_xul_client|bool == true
 
-
   - name: Install Evergreen without xul for EG 3.3 and above
     become: true
     shell: cd /home/opensrf/repos/Evergreen && make install && chown -R opensrf:opensrf {{openils_path}}
@@ -426,7 +502,6 @@
     become: true
     shell: cd /home/opensrf/repos/Evergreen && cp Open-ILS/examples/apache_24/eg_24.conf /etc/apache2/sites-available/eg.conf && cp Open-ILS/examples/apache_24/eg_vhost_24.conf /etc/apache2/eg_vhost.conf && cp Open-ILS/examples/{{ apache_folder }}/eg_startup /etc/apache2/
 
-
   - file: path=/etc/apache2/ssl state=directory
   - name: Setup SSL Certs
     become: true
@@ -448,87 +523,104 @@
   - lineinfile: "dest=/etc/apache2/eg_vhost.conf state=present regexp='RemoteIPInternalProxy 1' line='RemoteIPInternalProxy 127.0.0.1/24'"
   - lineinfile: "dest=/etc/apache2/eg_vhost.conf state=present regexp='RemoteIPInternalProxy \\:' line='RemoteIPInternalProxy ::1'"
   - lineinfile: "dest=/etc/apache2/eg_vhost.conf state=present regexp='RemoteIPHeader' line='RemoteIPHeader X-Forwarded-For'"
+
   - name: copy custom eg.conf (if exists)
     become: true
     ignore_errors: yes
     shell: cp /egconfigs/eg.conf /etc/apache2/sites-available/eg.conf
+
   - name: copy custom eg_vhost.conf (if exists)
     become: true
     ignore_errors: yes
     shell: cp /egconfigs/eg_vhost.conf /etc/apache2/eg_vhost.conf
+
   - lineinfile:
       dest: /etc/apache2/eg_vhost.conf
       line: RewriteCond %{REQUEST_URI} ^/eg2/
     when: add_evergreen_language_support|bool == true
     ignore_errors: yes
+
   - lineinfile:
       dest: /etc/apache2/eg_vhost.conf
       line: RewriteCond %{REQUEST_URI} !^/eg2/fr-CA/
     when: add_evergreen_language_support|bool == true
     ignore_errors: yes
+
   - lineinfile:
       dest: /etc/apache2/eg_vhost.conf
       line: RewriteCond %{HTTP_COOKIE} eg_locale=fr_ca
     when: add_evergreen_language_support|bool == true
     ignore_errors: yes
+
   - lineinfile:
       dest: /etc/apache2/eg_vhost.conf
       line: RewriteRule ^/eg2/(.*) https://%{HTTP_HOST}/eg2/fr-CA/$1 [R=307,L]
     when: add_evergreen_language_support|bool == true
     ignore_errors: yes
+
   - lineinfile:
       dest: /etc/apache2/eg_vhost.conf
       insertafter: . sample staff-specific translation files
       line: PerlAddVar OILSWebLocale "/openils/var/data/locale/staff/es-ES.po"
     when: add_evergreen_language_support|bool == true
     ignore_errors: yes
+
   - lineinfile:
       dest: /etc/apache2/eg_vhost.conf
       insertafter: . sample staff-specific translation files
       line: PerlAddVar OILSWebLocale "es_es"
     when: add_evergreen_language_support|bool == true
     ignore_errors: yes
+
   - lineinfile:
       dest: /etc/apache2/eg_vhost.conf
       insertafter: . sample staff-specific translation files
       line: PerlAddVar OILSWebLocale "/openils/var/data/locale/staff/ar-JO.po"
     when: add_evergreen_language_support|bool == true
     ignore_errors: yes
+
   - lineinfile:
       dest: /etc/apache2/eg_vhost.conf
       insertafter: . sample staff-specific translation files
       line: PerlAddVar OILSWebLocale "ar_jo"
     when: add_evergreen_language_support|bool == true
     ignore_errors: yes
+
   - lineinfile:
       dest: /etc/apache2/eg_vhost.conf
       insertafter: . sample staff-specific translation files
       line: PerlAddVar OILSWebLocale "/openils/var/data/locale/staff/cs-CZ.po"
     when: add_evergreen_language_support|bool == true
     ignore_errors: yes
+
   - lineinfile:
       dest: /etc/apache2/eg_vhost.conf
       insertafter: . sample staff-specific translation files
       line: PerlAddVar OILSWebLocale "cs-cz"
     when: add_evergreen_language_support|bool == true
     ignore_errors: yes
+
   - lineinfile:
       dest: /etc/apache2/eg_vhost.conf
       insertafter: . sample staff-specific translation files
       line: PerlAddVar OILSWebLocale "/openils/var/data/locale/staff/fr-CA.po"
     when: add_evergreen_language_support|bool == true
+
   - lineinfile:
       dest: /etc/apache2/eg_vhost.conf
       insertafter: . sample staff-specific translation files
       line: PerlAddVar OILSWebLocale "fr-ca"
     when: add_evergreen_language_support|bool == true
     ignore_errors: yes
+
   - name: Enable apache prefork module and evergreen default apache site
     become: true
     shell: /usr/sbin/a2dismod mpm_event && /usr/sbin/a2enmod mpm_prefork && /usr/sbin/a2ensite eg.conf && chown opensrf /var/lock/apache2
+
   - name: Copy opensrf example files to {{openils_path}}/conf
     become: true
     shell: cp -b {{openils_path}}/conf/opensrf_core.xml.example {{openils_path}}/conf/opensrf_core.xml && cp -b {{openils_path}}/conf/opensrf.xml.example {{openils_path}}/conf/opensrf.xml
+
   - lineinfile: "dest={{openils_path}}/conf/opensrf_core.xml state=present regexp='<passwd>password</passwd>' line='<passwd>{{ejabberd_password}}</passwd>'"
   - lineinfile: "dest={{openils_path}}/conf/opensrf_core.xml state=present regexp='<passwd>password</passwd>' line='<passwd>{{ejabberd_password}}</passwd>'"
   - lineinfile: "dest={{openils_path}}/conf/opensrf_core.xml state=present regexp='<password>password</password>' line='<password>{{ejabberd_password}}</password>'"
@@ -588,45 +680,61 @@
     when: use_custom_opensrf_xml|bool == false
     become: true
     become_user: opensrf
+
   - name: Copy custom opensrf {{openils_path}}/conf {{ use_custom_opensrf_xml }}
     when: use_custom_opensrf_xml|bool == true
     become: true
     shell: cp /egconfigs/opensrf.xml {{openils_path}}/conf && chown opensrf:opensrf {{openils_path}}/conf/opensrf.xml
+
   - name: Owning apache2 pid file
     become: true
     shell: chown opensrf /var/lock/apache2*
     ignore_errors: yes
+
   - name: Disable the default apache sites
     become: true
     ignore_errors: yes
     shell: /usr/sbin/a2dissite default-ssl && /usr/sbin/a2dissite 000-default
+
 ## SETUP NGINX
   - name: Stop Apache
-    become: true
+    ignore_errors: yes
     service:
       name: apache2
       state: stopped
+# service module is broken for ansible/jammy/docker
+  - name: Stop Apache manually
+    ignore_errors: yes
+    shell: /etc/init.d/apache2 stop
+    when: ubuntu_version|lower == 'jammy'
+
   - name: Install nginx for the WebSockets proxy
     become: true
     apt:
       name: nginx
+
   - stat: path=/etc/nginx/sites-available
     register: nginxsites
+
   - name: Copy example nginx config
     become: true
     shell: cp /home/opensrf/repos/OpenSRF/examples/nginx/osrf-ws-http-proxy /etc/nginx/sites-available/
     when: nginxsites.stat.isdir is defined
+
   - name: Setup nginx sites
     become: true
     shell: ln -s /etc/nginx/sites-available/osrf-ws-http-proxy /etc/nginx/sites-enabled/osrf-ws-http-proxy && rm /etc/nginx/sites-enabled/default
+
   - name: Generate dhpararm file for nginx WebSockets proxy
     become: true
     shell: openssl dhparam -out /etc/apache2/ssl/dhparam.pem 2048
+
   - lineinfile: dest=/etc/apache2/sites-enabled/eg.conf regexp="^<VirtualHost \*:443>" line="<VirtualHost *:7443>"
   - lineinfile: dest=/etc/apache2/sites-enabled/eg.conf regexp="^<VirtualHost \*:80>" line="<VirtualHost *:7080>"
   - lineinfile: dest=/etc/apache2/ports.conf state=present regexp="^Listen 80" line="Listen 7080"
   - lineinfile: dest=/etc/apache2/ports.conf state=present regexp="Listen 443" line="        Listen 7443"
   - lineinfile: dest=/etc/apache2/ports.conf state=present regexp="Listen 443" line="        Listen 7443"
+
   - name: Enable apache remoteip module
     become: true
     shell: /usr/sbin/a2enmod remoteip
@@ -675,6 +783,7 @@
     shell: cp {{ openils_path }}/conf/oils_sip.xml.example {{ openils_path }}/conf/oils_sip.xml && chown opensrf:opensrf -R {{ openils_path }}
   - lineinfile: dest={{ openils_path }}/conf/oils_sip.xml state=present regexp='<login id="scclient" password="clientpwd"' line='<login id="{{evergreen_global_admin}}" password="{{evergreen_global_admin_password}}" institution="sample"/>'
   - lineinfile: dest={{ openils_path }}/conf/oils_sip.xml state=present regexp='<institution id="gapines" implementation="OpenILS::SIP">' line='<institution id="sample" implementation="OpenILS::SIP">'
+
 ## Compile staff client on older versions of EG
   - name: Install nsis
     apt: name=nsis

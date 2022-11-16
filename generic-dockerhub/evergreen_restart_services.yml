@@ -22,9 +22,16 @@
     become: true
     shell: echo {{ansible_all_ipv4_addresses.0}} {{ansible_fqdn}}.{{domain_name}} {{ansible_hostname}} >> /etc/hosts
   - name: starting ssh
+    ignore_errors: yes
     service:
       name: ssh
       state: started
+# service module is broken for ansible/jammy/docker
+  - name: Starting ssh manually
+    ignore_errors: yes
+    shell: /etc/init.d/ssh restart
+    when: ubuntu_version|lower == 'jammy'
+
   - name: stopping syslog-ng
     ignore_errors: yes
     service:
@@ -35,14 +42,34 @@
     service:
       name: syslog-ng
       state: started
+# service module is broken for ansible/jammy/docker
+  - name: Starting syslog-ng manually
+    ignore_errors: yes
+    shell: /etc/init.d/syslog-ng restart
+    when: ubuntu_version|lower == 'jammy'
+
   - name: starting memcached
+    ignore_errors: yes
     service:
       name: memcached
       state: started
+# service module is broken for ansible/jammy/docker
+  - name: Starting memcache manually
+    ignore_errors: yes
+    shell: /etc/init.d/memcached restart
+    when: ubuntu_version|lower == 'jammy'
+
   - name: starting postgres
+    ignore_errors: yes
     service:
       name: postgresql
       state: started
+# service module is broken for ansible/jammy/docker
+  - name: Starting postgresql manually
+    ignore_errors: yes
+    shell: /etc/init.d/postgresql restart
+    when: ubuntu_version|lower == 'jammy'
+
   - name: Set Timezone Environment Var
     become: true
     lineinfile: "dest=/root/.bashrc state=present line='export TZ=America/Chicago'"
@@ -88,6 +115,7 @@
     service:
       name: ejabberd
       state: stopped
+
   - name: Kill ejabberd
     ignore_errors: yes
     shell: "/bin/ps -ef | /bin/grep ejabber | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9"
@@ -101,9 +129,16 @@
     ignore_errors: yes
     shell: "/bin/ps -ef | /bin/grep ejabber | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9"
   - name: Starting ejabberd
+    ignore_errors: yes
     service:
       name: ejabberd
       state: started
+# service module is broken for ansible/jammy/docker
+  - name: Starting ejabberd manually
+    ignore_errors: yes
+    shell: /etc/init.d/ejabberd start
+    when: ubuntu_version|lower == 'jammy'
+
   - name: Pausing for ejabberd
     pause: seconds=5
   - name: Setup ejabberd users
@@ -120,19 +155,32 @@
     ignore_errors: yes
     shell: /usr/sbin/a2dissite default-ssl && /usr/sbin/a2dissite 000-default
   - name: Stop Web services
+    ignore_errors: yes
     become: true
     service:
       name: apache2
       state: stopped
+# service module is broken for ansible/jammy/docker
+  - name: Starting apache2 manually
+    ignore_errors: yes
+    shell: /etc/init.d/apache2 stop
+    when: ubuntu_version|lower == 'jammy'
+
   - name: Stop Websocketd
     become: true
     ignore_errors: yes
     shell: "/bin/ps -ef | /bin/grep osrf-websocket-stdio | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9"
   - name: Stop nginx Websockets proxy
+    ignore_errors: yes
     become: true
     service:
       name: nginx
       state: stopped
+# service module is broken for ansible/jammy/docker
+  - name: Starting nginx manually
+    ignore_errors: yes
+    shell: /etc/init.d/nginx stop
+    when: ubuntu_version|lower == 'jammy'
   - name: Stop OpenSRF
     become: true
     become_user: opensrf
@@ -149,6 +197,7 @@
     ignore_errors: yes
     shell: "/bin/ps -ef | /bin/grep OpenSRF | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9"
   - name: Stopping ejabberd
+    ignore_errors: yes
     service:
       name: ejabberd
       state: stopped
@@ -165,9 +214,16 @@
     ignore_errors: yes
     shell: /bin/ps -ef | /bin/grep -i sip | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9
   - name: Starting ejabberd
+    ignore_errors: yes
     service:
       name: ejabberd
       state: started
+# service module is broken for ansible/jammy/docker
+  - name: Starting ejabberd manually
+    ignore_errors: yes
+    shell: /etc/init.d/ejabberd start
+    when: ubuntu_version|lower == 'jammy'
+
   - name: Pausing for ejabberd
     pause: seconds=10
   - name: Setup external domain name in hosts
@@ -193,24 +249,57 @@
     shell:  export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/autogen.sh -u
   - name: Setup Lets encrypt folder link
     become: true
-    shell: cd {{openils_path}}/var/web && ln -sf {{lets_encrypt_shared_web_folder}} .well-known
+    become_user: opensrf
+    ignore_errors: yes
+    file:
+      force: yes
+      state: link
+      src: "{{lets_encrypt_shared_web_folder}}"
+      dest: "{{openils_path}}/var/web/.well-known"
   - name: Setup shared reports folder link
     become: true
     become_user: opensrf
-    shell: cd {{openils_path}}/var/web && ln -sf {{shared_reports_folder}} reporter
+    ignore_errors: yes
+    file:
+      force: yes
+      state: link
+      src: "{{shared_reports_folder}}"
+      dest: "{{openils_path}}/var/web/reporter"
   - name: Setup circ_notices link
     become: true
     become_user: opensrf
-    shell: cd {{openils_path}}/var/web && ln -sf {{shared_circ_notices_folder}} notices
+    ignore_errors: yes
+    file:
+      force: yes
+      state: link
+      src: "{{shared_circ_notices_folder}}"
+      dest: "{{openils_path}}/var/web/notices"
+  - name: Create Jackets Symlink
+    become: true
+    become_user: opensrf
+    ignore_errors: yes
+    file:
+      force: yes
+      state: link
+      src: "{{shared_jackets_folder}}"
+      dest: "{{openils_path}}/var/web/opac/extras/ac"
+
   - name: Copy fm_IDL
     become: true
     become_user: opensrf
     shell: cp {{ openils_path }}/conf/fm_IDL.xml {{ openils_path }}/var/web/reports/fm_IDL.xml
   - name: Start Web services
+    ignore_errors: yes
     become: true
     service:
       name: apache2
       state: started
+# service module is broken for ansible/jammy/docker
+  - name: Starting apache2 manually
+    ignore_errors: yes
+    shell: /etc/init.d/apache2 start
+    when: ubuntu_version|lower == 'jammy'
+
   - name: create websocketd start script
     file:
       path: /egconfigs/start_websocketd
@@ -238,10 +327,17 @@
     become: true
     lineinfile: 'dest=/etc/nginx/sites-available/osrf-ws-http-proxy state=present regexp="ssl_certificate_key\s" line="ssl_certificate_key /etc/apache2/ssl/server.key;"'
   - name: Start nginx Websockets proxy
+    ignore_errors: yes
     become: true
     service:
       name: nginx
       state: started
+# service module is broken for ansible/jammy/docker
+  - name: Starting nginx manually
+    ignore_errors: yes
+    shell: /etc/init.d/nginx start
+    when: ubuntu_version|lower == 'jammy'
+
   - name: copy the oils_sip.xml
     become: true
     shell: cp {{ openils_path }}/conf/oils_sip.xml.example {{ openils_path }}/conf/oils_sip.xml && chown opensrf:opensrf -R {{ openils_path }}
