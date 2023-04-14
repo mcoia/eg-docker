@@ -1,0 +1,21 @@
+---
+#ansible-playbook /mnt/evergreen/playbooks/restart_app_services.yml --private-key /home/user/.ssh/id_rsa -vvvv -e "hosts=192.168.12.49"
+
+- hosts: '{{hosts}}'
+  connection: local
+  remote_user: user
+  become_method: sudo
+  vars_files:
+    - vars.yml
+  tasks:
+
+## we need to copy the incoming Evergreen repo into a local folder because Windows/Linux symlinks don't work together
+  - name: create stub folder /home/opensrf/repos/Evergreen-build
+    file:
+      path: /home/opensrf/repos/Evergreen-build
+      state: directory
+  - name: rsync /home/opensrf/repos/Evergreen -> /home/opensrf/repos/Evergreen-build
+    become: true
+    shell: rsync -a --exclude ".git" /home/opensrf/repos/Evergreen /home/opensrf/repos/Evergreen-build
+
+...

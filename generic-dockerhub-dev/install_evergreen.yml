@@ -95,35 +95,6 @@
       PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
     shell: cd /home/opensrf/repos && git clone git://git.evergreen-ils.org/Evergreen.git
 
-  - name: OpenSRF Git Add remote
-    become: true
-    become_user: opensrf
-    shell: cd /home/opensrf/repos/OpenSRF && git remote add -f working git://git.evergreen-ils.org/working/OpenSRF.git
-    ignore_errors: yes
-
-  - name: OpenSRF Git Add remote
-    become: true
-    become_user: opensrf
-    shell: cd /home/opensrf/repos/OpenSRF && git remote set-url --push working git@git.evergreen-ils.org:working/OpenSRF.git
-    ignore_errors: yes
-
-  - name: OpenSRF Checkout Branch
-    become: true
-    become_user: opensrf
-    shell: cd /home/opensrf/repos/OpenSRF && git fetch --all && git pull && git checkout {{opensrf_git_branch}}
-
-  - name: OpenSRF Git Cherry pick loop Debug
-    become: true
-    become_user: opensrf
-    debug: msg="Cherry Picking {{ item }}"
-    with_items: "{{ OpenSRF_cherry_picks }}"
-
-  - name: OpenSRF Git Cherry pick loop
-    become: true
-    become_user: opensrf
-    shell: cd /home/opensrf/repos/OpenSRF && git cherry-pick {{ item }}
-    with_items: "{{ OpenSRF_cherry_picks }}"
-
   - name: Install pkgconf just in case
     become: true
     apt:
@@ -139,7 +110,7 @@
     become: true
     shell: cd /home/opensrf/repos/OpenSRF && git clean -x -f -d && git checkout master && git checkout osrf_rel_3_2_1
     when: ubuntu_version|lower == 'xenial'
-  
+
   - name: Install OpenSRF prereqs
     become: true
     shell: apt-get update && cd /home/opensrf/repos/OpenSRF && export PERL_MM_USE_DEFAULT=1 && autoreconf -i && make -f src/extras/Makefile.install ubuntu-{{ ubuntu_version|lower }} && chown opensrf:opensrf -R .
@@ -253,17 +224,6 @@
 # # ### OPENSRF IS FINISHED
 
 ### STARTING EVERGREEN SECTION
-  - name: Evergreen Git Add remote
-    become: true
-    become_user: opensrf
-    shell: cd /home/opensrf/repos/Evergreen && git remote add -f working git://git.evergreen-ils.org/working/Evergreen.git
-    ignore_errors: yes
-
-  - name: Evergreen Git Add remote
-    become: true
-    become_user: opensrf
-    shell: cd /home/opensrf/repos/Evergreen && git remote set-url --push working git@git.evergreen-ils.org:working/Evergreen.git
-    ignore_errors: yes
 
 ### if you chose bionic but Evergreen version < 3.3, then we need to install this step with a newer version of evergreen
   - name: register special case
@@ -810,6 +770,14 @@
   - name: Setup EG concerto database
     become: true
     shell: cd /home/opensrf/repos/Evergreen && perl Open-ILS/src/support-scripts/eg_db_config --update-config --service all --create-database --create-schema --create-offline --user {{ database_user }} --password {{ database_password }} --hostname {{ database_host }} --port {{ database_port }} --database {{ database_database }} --admin-user {{ evergreen_global_admin }} --admin-pass {{ evergreen_global_admin_password }} --load-all-sample
+### Wipe out the Evergreen source, to make way for the container mounted Evergreen source
+  - name: Delete /home/opensrf/repos/Evergreen
+    become: true
+    file: path=/home/opensrf/repos/Evergreen state=absent
+  - name: Create empty folder /home/opensrf/repos/Evergreen
+    become: true
+    become_user: opensrf
+    file: path=/home/opensrf/repos/Evergreen state=directory
   - name: Download and make pgtap
     become: true
     become_user: postgres
