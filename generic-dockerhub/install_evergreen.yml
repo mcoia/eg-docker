@@ -446,7 +446,7 @@
   - name: Setting up eg2 for EG version 3.2 and above
     become: true
     become_user: opensrf
-    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/src/eg2/ && npm install && ng build --prod
+    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/src/eg2/ && npm install && {{ angular_build_command }}
     when: evergreen_major_version|int > 2 and evergreen_minor_version|int > 1
 
   - name: Setting up bootstrap opac for EG 3.6 and above
