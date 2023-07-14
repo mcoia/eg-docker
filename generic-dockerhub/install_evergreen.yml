@@ -137,7 +137,7 @@
 
   - name: OpenSRF needs to be older to support xenial
     become: true
-    shell: cd /home/opensrf/repos/OpenSRF && git clean -x -f -d && git checkout master && git checkout osrf_rel_3_2_1
+    shell: cd /home/opensrf/repos/OpenSRF && git clean -x -f -d && git checkout main && git checkout osrf_rel_3_2_1
     when: ubuntu_version|lower == 'xenial'
   
   - name: Install OpenSRF prereqs
@@ -146,7 +146,7 @@
 
   - name: Switch OpenSRF branch back to desired version
     become: true
-    shell: cd /home/opensrf/repos/OpenSRF && git clean -x -f -d && git checkout master && git checkout {{opensrf_git_branch}} && export PERL_MM_USE_DEFAULT=1 && autoreconf -i && chown opensrf:opensrf -R /home/opensrf/repos/OpenSRF
+    shell: cd /home/opensrf/repos/OpenSRF && git clean -x -f -d && git checkout main && git checkout {{opensrf_git_branch}} && export PERL_MM_USE_DEFAULT=1 && autoreconf -i && chown opensrf:opensrf -R /home/opensrf/repos/OpenSRF
     when: ubuntu_version|lower == 'xenial'
 
 ### Installing OpenSRF from opensrf_git_branch 
@@ -764,7 +764,7 @@
   - name: Git SIPServer fetch all
     become: true
     become_user: opensrf
-    shell: cd /opt/SIPServer && git checkout master && git fetch --all && git pull
+    shell: cd /opt/SIPServer && git checkout main && git fetch --all && git pull
   - name: Git SIPServer Checkout the "Good" Branch
     become: true
     become_user: opensrf

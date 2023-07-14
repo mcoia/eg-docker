@@ -10,7 +10,7 @@
 # Particularly eg_vhost.conf
   add_evergreen_language_support: no
 # You can manually assign the Evergreen git branch, or let this regular expression figure it out based on evergreen_git_branch
-  evergreen_git_branch: master
+  evergreen_git_branch: main
 
   evergreen_major_version: 3
   evergreen_minor_version: 10
@@ -20,7 +20,7 @@
   postgres_version: "{% if ubuntu_version|lower == 'jammy' or ubuntu_version|lower == 'focal' %}10{% elif ubuntu_version|lower == 'bionic' %}9.6{% else %}9.5{% endif %}"
 
 # The latest version of OpenSRF seems to work with all versions of Evergreen.
-  opensrf_git_branch: master
+  opensrf_git_branch: main
 
 # This directory will be linked to /openilspath/var/web/.well-known
   lets_encrypt_shared_web_folder: /mnt/evergreen/letsencrypt_shared_web_directory/.well-known
