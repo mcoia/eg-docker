@@ -244,11 +244,11 @@
 
   - name: Download websocketsd
     become: true
-    shell: cd /tmp && wget 'https://github.com/joewalnes/websocketd/releases/download/v0.3.0/websocketd-0.3.0-linux_amd64.zip'
+    shell: "cd /tmp && wget https://github.com/joewalnes/websocketd/releases/download/v{{ websocketd_version }}/{{ websocketd_filename }}"
 
   - name: Unzip Websockets
     become: true
-    shell: cd /tmp && unzip -u websocketd-0.3.0-linux_amd64.zip && cp websocketd /usr/local/bin/
+    shell: "cd /tmp && unzip -u {{ websocketd_filename }} && cp websocketd /usr/local/bin/"
 
 # # ### OPENSRF IS FINISHED
 
