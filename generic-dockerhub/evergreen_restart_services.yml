@@ -229,6 +229,7 @@
     pause: seconds=10
   - name: Setup external domain name in hosts
     become: true
+    ignore_errors: yes
     shell: echo {{ansible_all_ipv4_addresses.0}} {{domain_name}} >> /etc/hosts
   - name: Sync up the {{openils_path}} directories
     become: true
