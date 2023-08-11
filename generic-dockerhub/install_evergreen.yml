@@ -287,6 +287,10 @@
     become: true
     shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}-developer
     when: switch_to_newer_version is defined
+  - name: Setup Evergreen translator packages
+    become: true
+    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}-translator
+    when: switch_to_newer_version is defined
   - name: Setup Evergreen Postgres packages
     become: true
     shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install postgres-server-ubuntu-{{ ubuntu_version }}
@@ -321,6 +325,11 @@
   - name: Setup Evergreen developer packages
     become: true
     shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}-developer
+    when: switch_to_newer_version is not defined
+
+  - name: Setup Evergreen translator packages
+    become: true
+    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}-translator
     when: switch_to_newer_version is not defined
 
 ## Install Database
@@ -363,18 +372,6 @@
     become: true
     ignore_errors: yes
     shell: echo never > /sys/kernel/mm/transparent_hugepage/enabled
-
-  - name: i18n prereqs
-    become: true
-    ignore_errors: yes
-    shell: apt-get -y install translate-toolkit python-dev python-setuptools python-simplejson python-lxml liblocale-maketext-lexicon-perl
-    when: evergreen_major_version|int > 2 and evergreen_minor_version|int > 5
-
-  - name: i18n prereqs
-    become: true
-    ignore_errors: yes
-    shell: apt-get -y install python-levenshtein python-polib
-    when: (evergreen_major_version|int > 2 and evergreen_minor_version|int > 5) and ubuntu_version != 'focal'
 
   - name: update PO files
     become: true
