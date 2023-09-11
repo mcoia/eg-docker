@@ -60,11 +60,11 @@
     shell: /etc/init.d/memcached restart
     when: ubuntu_version|lower == 'jammy'
 
-  - name: starting postgres
+  - name: (re)starting postgres
     ignore_errors: yes
     service:
       name: postgresql
-      state: started
+      state: restarted
 # service module is broken for ansible/jammy/docker
   - name: Starting postgresql manually
     ignore_errors: yes
@@ -203,16 +203,16 @@
       state: absent
     when: symcheck is defined and (symcheck.stat.islnk is defined or symcheck.stat.islnk == true)
 
-  - name: Check /usr/local/share/perl/5.34.0/OpenILS folder for existing symlink
+  - name: Check /usr/local/share/perl/5.30.0/OpenILS folder for existing symlink
     become: true
     stat:
-      path: /usr/local/share/perl/5.34.0/OpenILS
+      path: /usr/local/share/perl/5.30.0/OpenILS
     register: symcheck
-  - name: Delete /usr/local/share/perl/5.34.0/OpenILS if it's a symlink
+  - name: Delete /usr/local/share/perl/5.30.0/OpenILS if it's a symlink
     become: true
     ignore_errors: yes
     file:
-      path: /usr/local/share/perl/5.34.0/OpenILS
+      path: /usr/local/share/perl/5.30.0/OpenILS
       state: absent
     when: symcheck is defined and (symcheck.stat.islnk is defined or symcheck.stat.islnk == true)
 
@@ -681,27 +681,27 @@
       src: "/home/opensrf/repos/Evergreen-build/Open-ILS/web/eg2"
       dest: "{{openils_path}}/var/web/eg2"
 
-## /usr/local/share/perl/5.34.0/OpenILS
-  - name: Check /usr/local/share/perl/5.34.0/OpenILS folder for existing symlink
+## /usr/local/share/perl/5.30.0/OpenILS
+  - name: Check /usr/local/share/perl/5.30.0/OpenILS folder for existing symlink
     become: true
     stat:
-      path: /usr/local/share/perl/5.34.0/OpenILS
+      path: /usr/local/share/perl/5.30.0/OpenILS
     register: symcheck
-  - name: Delete /usr/local/share/perl/5.34.0/OpenILS if it's not a symlink
+  - name: Delete /usr/local/share/perl/5.30.0/OpenILS if it's not a symlink
     become: true
     ignore_errors: yes
     file:
-      path: /usr/local/share/perl/5.34.0/OpenILS
+      path: /usr/local/share/perl/5.30.0/OpenILS
       state: absent
     when: symcheck is defined and (symcheck.stat.islnk is not defined or symcheck.stat.islnk == false)
-  - name: Create /usr/local/share/perl/5.34.0/OpenILS Symlink
+  - name: Create /usr/local/share/perl/5.30.0/OpenILS Symlink
     become: true
     ignore_errors: yes
     file:
       force: yes
       state: link
       src: "/home/opensrf/repos/Evergreen/Open-ILS/src/perlmods/lib/OpenILS"
-      dest: "/usr/local/share/perl/5.34.0/OpenILS"
+      dest: "/usr/local/share/perl/5.30.0/OpenILS"
 
 ## {{openils_path}}/var/web/opac/deps
   - name: Check {{openils_path}}/var/web/opac/deps folder for existing symlink
