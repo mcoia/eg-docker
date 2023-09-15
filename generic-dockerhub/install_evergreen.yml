@@ -589,7 +589,7 @@
   - lineinfile:
       dest: /etc/apache2/eg_vhost.conf
       insertafter: . sample staff-specific translation files
-      line: PerlAddVar OILSWebLocale "cs-cz"
+      line: PerlAddVar OILSWebLocale "cs_cz"
     when: add_evergreen_language_support|bool == true
     ignore_errors: yes
 
@@ -602,7 +602,7 @@
   - lineinfile:
       dest: /etc/apache2/eg_vhost.conf
       insertafter: . sample staff-specific translation files
-      line: PerlAddVar OILSWebLocale "fr-ca"
+      line: PerlAddVar OILSWebLocale "fr_ca"
     when: add_evergreen_language_support|bool == true
     ignore_errors: yes
 
