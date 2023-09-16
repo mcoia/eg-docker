@@ -400,6 +400,17 @@
       line: "    browsers: ['FirefoxHeadless'],"
     when: evergreen_major_version|int > 2 and evergreen_minor_version|int > 3
 
+  - name: Add locale picker to Angular client
+    lineinfile:
+      dest: /home/opensrf/repos/Evergreen/Open-ILS/src/eg2/src/environments/{{item}}
+      state: present
+      regexp: "\\['en-US'\\]"
+      line: "      locales: ['en-US', 'cs-CZ']"
+    when: evergreen_major_version|int > 2 and evergreen_minor_version|int > 3 and add_evergreen_language_support|bool == true
+    loop:
+      - environment.ts
+      - environment.prod.ts
+
   - name: Setting up eg2 for EG version 3.2 and above
     become: true
     become_user: opensrf
@@ -549,7 +560,7 @@
   - lineinfile:
       dest: /etc/apache2/eg_vhost.conf
       insertafter: . sample staff-specific translation files
-      line: PerlAddVar OILSWebLocale "cs-cz"
+      line: PerlAddVar OILSWebLocale "cs_cz"
     when: add_evergreen_language_support|bool == true
     ignore_errors: yes
 
@@ -562,7 +573,7 @@
   - lineinfile:
       dest: /etc/apache2/eg_vhost.conf
       insertafter: . sample staff-specific translation files
-      line: PerlAddVar OILSWebLocale "fr-ca"
+      line: PerlAddVar OILSWebLocale "fr_ca"
     when: add_evergreen_language_support|bool == true
     ignore_errors: yes
 
