@@ -538,29 +538,37 @@
     ignore_errors: yes
     shell: cp /egconfigs/eg_vhost.conf /etc/apache2/eg_vhost.conf
 
-  - lineinfile:
-      dest: /etc/apache2/eg_vhost.conf
-      line: RewriteCond %{REQUEST_URI} ^/eg2/
+  - name: add cs-CZ rewrite config to eg_vhost.conf
+    become: true
+    blockinfile:
+      path: /etc/apache2/eg_vhost.conf
+      insertafter: "Otherwise, if no locale is active, redirect to the default locale."
+      marker: "# {mark} ANSIBLE MANAGED BLOCK: cs-CZ Rewrite rules"
+      block: |
+        RewriteCond %{REQUEST_URI} ^/eg2/
+        RewriteCond %{REQUEST_URI} !^/eg2/cs-CZ/
+        RewriteCond %{HTTP_COOKIE} eg_locale=cs_cz
+        RewriteRule ^/eg2/(.*) https://%{HTTP_HOST}/eg2/cs-CZ/$1 [R=307,L]
     when: add_evergreen_language_support|bool == true
-    ignore_errors: yes
 
-  - lineinfile:
-      dest: /etc/apache2/eg_vhost.conf
-      line: RewriteCond %{REQUEST_URI} !^/eg2/fr-CA/
+  - name: add cs-CZ directory config to eg_vhost.conf
+    become: true
+    blockinfile:
+      path: /etc/apache2/eg_vhost.conf
+      insertbefore: "fr-CA build"
+      marker: "# {mark} ANSIBLE MANAGED BLOCK: cs-CZ Directory stanza"
+      block: |
+        <Directory "/openils/var/web/eg2/cs-CZ">
+          FallbackResource /eg2/cs-CZ/index.html
+          <Files "index.html">
+            <IfModule mod_headers.c>
+              Header set Cache-Control "no-cache, no-store, must-revalidate"
+              Header set Pragma "no-cache"
+              Header set Expires 0
+            </IfModule>
+          </Files>
+        </Directory>
     when: add_evergreen_language_support|bool == true
-    ignore_errors: yes
-
-  - lineinfile:
-      dest: /etc/apache2/eg_vhost.conf
-      line: RewriteCond %{HTTP_COOKIE} eg_locale=fr_ca
-    when: add_evergreen_language_support|bool == true
-    ignore_errors: yes
-
-  - lineinfile:
-      dest: /etc/apache2/eg_vhost.conf
-      line: RewriteRule ^/eg2/(.*) https://%{HTTP_HOST}/eg2/fr-CA/$1 [R=307,L]
-    when: add_evergreen_language_support|bool == true
-    ignore_errors: yes
 
   - lineinfile:
       dest: /etc/apache2/eg_vhost.conf
