@@ -28,7 +28,7 @@
 
 ### Build the container
 
-`cd generic-dockerhub && docker build .`
+`cd generic-dockerhub && docker build --add-host public.localhost:127.0.1.2 --add-host public:127.0.1.2 --add-host private.localhost:127.0.1.3 --add-host private:127.0.1.3 .`
 
 ### Run the container
 
