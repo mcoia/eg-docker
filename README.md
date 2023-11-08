@@ -40,7 +40,7 @@
 
 `HOST=app.brick.com IMAGE=evergreen docker-compose up -d`
 
-- NOTE: Default VARS are defined in .evn and docker-compose.yml
+- NOTE: Default VARS are defined in .env and docker-compose.yml
 
 ### Look for the container finish line
 
