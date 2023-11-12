@@ -1,0 +1,118 @@
+---
+
+- hosts: '{{hosts}}'
+  connection: local
+  remote_user: user
+  become_method: sudo
+  vars_files:
+    - vars.yml
+  tasks:
+  - name: Setup | Stop OpenSRF
+    become: true
+    become_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/osrf_control --localhost --stop-all
+    tags: perl,angular,pgtap
+  - name: Setup | Reload a fresh copy of the concerto dataset
+    become: true
+    shell: cd /home/opensrf/repos/Evergreen && perl Open-ILS/src/support-scripts/eg_db_config --update-config --service all --create-database --create-schema --create-offline --user {{ database_user }} --password {{ database_password }} --hostname {{ database_host }} --port {{ database_port }} --database {{ database_database }} --admin-user {{ evergreen_global_admin }} --admin-pass {{ evergreen_global_admin_password }} --load-all-sample
+    tags: perl,angular,pgtap
+  - name: Setup | Start OpenSRF
+    become: true
+    become_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/osrf_control --localhost --start-all
+    tags: perl,angular,pgtap
+  - name: Setup | Install Firefox
+    become: true
+    apt:
+      name: firefox
+    tags: angularjs,angular,opac
+  - name: Setup | Activate pgtap extension
+    become: true
+    become_user: evergreen
+    shell: psql -c "CREATE EXTENSION pgtap;"
+    tags: pgtap
+  - name: Test | Run pgTAP tests
+    become: true
+    become_user: evergreen
+    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/src/sql/Pg && pg_prove t
+    ignore_errors: true
+    tags: pgtap
+  - name: Test | Run pgTAP regression tests
+    become: true
+    become_user: evergreen
+    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/src/sql/Pg && pg_prove t/regress
+    ignore_errors: true
+    tags: pgtap
+  - name: Test | Run pgTAP live tests
+    become: true
+    become_user: evergreen
+    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/src/sql/Pg && pg_prove live_t
+    ignore_errors: true
+    tags: pgtap
+  - name: Test | Run AngularJS unit tests
+    become: true
+    become_user: opensrf
+    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/web/js/ui/default/staff && npm run test
+    ignore_errors: true
+    tags: angularjs
+  - name: Test | Run Angular unit tests
+    become: true
+    become_user: opensrf
+    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/src/eg2 && npm run test
+    ignore_errors: true
+    tags: angular
+  - name: Test | Run Angular e2e tests
+    become: true
+    become_user: opensrf
+    environment:
+      MOZ_HEADLESS: 1
+    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/src/eg2 && ng e2e
+    ignore_errors: true
+    tags: angular
+  - name: Test | Run OPAC js unit tests
+    become: true
+    become_user: opensrf
+    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/web/opac/deps && npm run test
+    ignore_errors: true
+    tags: opac
+  - name: Test | Run Perl unit tests
+    become: true
+    become_user: opensrf
+    shell: cd /home/opensrf/repos/Evergreen && make check
+    ignore_errors: true
+    tags: perl
+  - name: Test | Run Perl live tests
+    become: true
+    become_user: opensrf
+    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/src/perlmods && make livecheck
+    ignore_errors: true
+    tags: perl
+  - name: Test | Run C unit tests
+    become: true
+    become_user: opensrf
+    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/src/c-apps/tests && make check
+    ignore_errors: true
+    tags: c
+  - name: Teardown | Stop OpenSRF
+    become: true
+    become_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/osrf_control --localhost --stop-all
+    tags: perl,angular,pgtap
+  - name: Teardown | Reload a fresh copy of the concerto dataset
+    become: true
+    shell: cd /home/opensrf/repos/Evergreen && perl Open-ILS/src/support-scripts/eg_db_config --update-config --service all --create-database --create-schema --create-offline --user {{ database_user }} --password {{ database_password }} --hostname {{ database_host }} --port {{ database_port }} --database {{ database_database }} --admin-user {{ evergreen_global_admin }} --admin-pass {{ evergreen_global_admin_password }} --load-all-sample
+    tags: perl,angular,pgtap
+  - name: Teardown | Start OpenSRF
+    become: true
+    become_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/osrf_control --localhost --start-all
+    tags: perl,angular,pgtap
+...
