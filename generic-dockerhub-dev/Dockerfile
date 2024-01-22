@@ -1,5 +1,5 @@
-FROM ubuntu:20.04
-ARG os=focal
+FROM ubuntu:22.04
+ARG os=jammy
 # For reference: xenial = 16.04, bionic = 18.04, focal = 20.04, jammy = 22.04
 
 EXPOSE 22
