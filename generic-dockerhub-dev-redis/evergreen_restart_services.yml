@@ -1,0 +1,742 @@
+---
+
+- hosts: '{{hosts}}'
+  connection: local
+  remote_user: user
+  become_method: sudo
+  vars_files:
+    - vars.yml
+  tasks:
+  - name: Setup host file
+    become: true
+    shell: cp /egconfigs/hosts /etc/hosts
+    ignore_errors: yes
+  - user: name=user groups=sudo
+  - name: Add local IP to hosts
+    ignore_errors: yes
+    become: true
+    shell: echo {{ansible_all_ipv4_addresses.0}} {{ansible_fqdn}}.{{domain_name}} {{ansible_hostname}} >> /etc/hosts
+
+  - name: Add local IP to hosts for redis
+    become: true
+    shell: echo 127.0.0.1 localhost public.localhost private.localhost >> /etc/hosts
+    ignore_errors: yes
+
+  - name: starting ssh
+    ignore_errors: yes
+    service:
+      name: ssh
+      state: started
+# service module is broken for ansible/jammy/docker
+  - name: Starting ssh manually
+    ignore_errors: yes
+    shell: /etc/init.d/ssh restart
+    when: ubuntu_version|lower == 'jammy'
+
+  - name: stopping syslog-ng
+    ignore_errors: yes
+    service:
+      name: syslog-ng
+      state: stopped
+  - name: starting syslog-ng
+    ignore_errors: yes
+    service:
+      name: syslog-ng
+      state: started
+# service module is broken for ansible/jammy/docker
+  - name: Starting syslog-ng manually
+    ignore_errors: yes
+    shell: /etc/init.d/syslog-ng restart
+    when: ubuntu_version|lower == 'jammy'
+
+  - name: starting memcached
+    ignore_errors: yes
+    service:
+      name: memcached
+      state: started
+# service module is broken for ansible/jammy/docker
+  - name: Starting memcache manually
+    ignore_errors: yes
+    shell: /etc/init.d/memcached restart
+    when: ubuntu_version|lower == 'jammy'
+
+  - name: (re)starting postgres
+    ignore_errors: yes
+    service:
+      name: postgresql
+      state: restarted
+# service module is broken for ansible/jammy/docker
+  - name: Starting postgresql manually
+    ignore_errors: yes
+    shell: /etc/init.d/postgresql restart
+    when: ubuntu_version|lower == 'jammy'
+
+  - name: Set Timezone Environment Var
+    become: true
+    lineinfile: "dest=/root/.bashrc state=present line='export TZ=America/Chicago'"
+  - name: Set Timezone Environment Var opensrf
+    become: true
+    lineinfile: "dest=/home/opensrf/.bashrc state=present line='export TZ=America/Chicago'"
+  - name: Set Timezone Environment Var for cron
+    become: true
+    lineinfile: "dest=/etc/crontab state=present line='TZ=America/Chicago' insertafter='PATH'"
+  - name: Remove Timezone file
+    become: true
+    file: path=/etc/localtime state=absent
+  - name: Setup System Timezone
+    become: true
+    ignore_errors: yes
+    shell: ln -s /usr/share/zoneinfo/US/Central /etc/localtime
+  - stat: path=/egconfigs/logrotate_evergreen.txt
+    register: logrotate_template
+  - name: Setup Logrotate for opensrf logs
+    when: logrotate_template.stat.isdir is defined
+    ignore_errors: yes
+    become: true
+    shell: cp /egconfigs/logrotate_evergreen.txt /etc/logrotate.d/evergreen
+  - name: Editing evergreen logrotate for opensrf logs
+    when: logrotate_template.stat.isdir is defined
+    ignore_errors: yes
+    become: true
+    lineinfile: "dest=/etc/logrotate.d/evergreen state=present regexp='replacemewith_path_and_curly_brace' line='{{openils_path}}/var/log/*.log {'"
+  - name: Changing evergreen logrotate file permissions
+    when: logrotate_template.stat.isdir is defined
+    ignore_errors: yes
+    become: true
+    file: "path=/etc/logrotate.d/evergreen state=file mode=0644"
+  - name: Fix Logrotate configuration
+    become: true
+    lineinfile: "dest=/etc/logrotate.conf state=present regexp='^su root' line='su root adm'"
+  - user: name=user groups=sudo
+  - lineinfile: "dest=/etc/sudoers state=present regexp='^%sudo' line='%sudo ALL=(ALL) NOPASSWD: ALL'"
+
+  - name: restarting redis
+    ignore_errors: yes
+    service:
+      name: redis-server
+      state: restarted
+
+# service module is broken for ansible/jammy/docker
+  - name: starting redis-server manually
+    ignore_errors: yes
+    shell: /etc/init.d/redis-server restart
+    when: ubuntu_version|lower == 'jammy'
+
+## we need to copy the incoming Evergreen repo into a local folder because Windows/Linux symlinks don't work together
+  - name: create stub folder /home/opensrf/repos/Evergreen-build
+    file:
+      path: /home/opensrf/repos/Evergreen-build
+      state: directory
+  - name: rsync /home/opensrf/repos/Evergreen -> /home/opensrf/repos/Evergreen-build
+    become: true
+    ignore_errors: yes
+    shell: rsync -a --exclude ".git" --exclude "node_modules" --no-owner --no-perms --size-only --chown 0:0 /home/opensrf/repos/Evergreen/ /home/opensrf/repos/Evergreen-build
+
+### Fix a couple of files that should have been symlinks
+  - name: Fix symlinks
+    become: true
+    ignore_errors: yes
+    shell: cd /home/opensrf/repos/Evergreen-build/Open-ILS/src/sql/Pg && rm 000.english.pg1* 000.english.pg95.fts-config.sql 000.english.pg96.fts-config.sql
+  - name: Fix symlinks
+    become: true
+    ignore_errors: yes
+    shell: cd /home/opensrf/repos/Evergreen-build/Open-ILS/src/sql/Pg && cp 000.english.pg94.fts-config.sql 000.english.pg10.fts-config.sql && cp 000.english.pg94.fts-config.sql 000.english.pg11.fts-config.sql && cp 000.english.pg94.fts-config.sql 000.english.pg12.fts-config.sql && cp 000.english.pg94.fts-config.sql 000.english.pg13.fts-config.sql && cp 000.english.pg94.fts-config.sql 000.english.pg14.fts-config.sql && cp 000.english.pg94.fts-config.sql 000.english.pg95.fts-config.sql && cp 000.english.pg94.fts-config.sql 000.english.pg96.fts-config.sql
+
+## reinstall Evergreen from locally provided bind mounted Evergreen folder
+  - name: Running autoreconf on the git repo
+    become: true
+    shell: cd /home/opensrf/repos/Evergreen-build && autoreconf -i
+
+## Symlink removal section
+  - name: Check {{openils_path}}/var/web/js/ui/default/staff folder for existing symlink
+    become: true
+    stat:
+      path: "{{openils_path}}/var/web/js/ui/default/staff"
+    register: symcheck
+  - name: Delete {{openils_path}}/var/web/js/ui/default/staff if it's a symlink
+    become: true
+    ignore_errors: yes
+    file:
+      path: "{{openils_path}}/var/web/js/ui/default/staff"
+      state: absent
+    when: symcheck is defined and (symcheck.stat.islnk is defined or symcheck.stat.islnk == true)
+
+  - name: Check {{openils_path}}/var/web/eg2 folder for existing symlink
+    become: true
+    stat:
+      path: "{{openils_path}}/var/web/eg2"
+    register: symcheck
+  - name: Delete {{openils_path}}/var/web/eg2 if it's a symlink
+    become: true
+    ignore_errors: yes
+    file:
+      path: "{{openils_path}}/var/web/eg2"
+      state: absent
+    when: symcheck is defined and (symcheck.stat.islnk is defined or symcheck.stat.islnk == true)
+
+  - name: Check /usr/local/share/perl/5.30.0/OpenILS folder for existing symlink
+    become: true
+    stat:
+      path: /usr/local/share/perl/5.30.0/OpenILS
+    register: symcheck
+  - name: Delete /usr/local/share/perl/5.30.0/OpenILS if it's a symlink
+    become: true
+    ignore_errors: yes
+    file:
+      path: /usr/local/share/perl/5.30.0/OpenILS
+      state: absent
+    when: symcheck is defined and (symcheck.stat.islnk is defined or symcheck.stat.islnk == true)
+
+  - name: Check {{openils_path}}/var/web/opac/deps folder for existing symlink
+    become: true
+    stat:
+      path: "{{openils_path}}/var/web/opac/deps"
+    register: symcheck
+  - name: Delete {{openils_path}}/var/web/opac/deps if it's a symlink
+    become: true
+    ignore_errors: yes
+    file:
+      path: "{{openils_path}}/var/web/opac/deps"
+      state: absent
+    when: symcheck is defined and (symcheck.stat.islnk is defined or symcheck.stat.islnk == true)
+
+  - name: Check {{openils_path}}/var/templates folder for existing symlink
+    become: true
+    stat:
+      path: "{{openils_path}}/var/templates"
+    register: symcheck
+  - name: Delete {{openils_path}}/var/templates if it's a symlink
+    become: true
+    ignore_errors: yes
+    file:
+      path: "{{openils_path}}/var/templates"
+      state: absent
+    when: symcheck is defined and (symcheck.stat.islnk is defined or symcheck.stat.islnk == true)
+
+  - name: Check {{openils_path}}/var/templates-bootstrap folder for existing symlink
+    become: true
+    stat:
+      path: "{{openils_path}}/var/templates-bootstrap"
+    register: symcheck
+  - name: Delete {{openils_path}}/var/templates-bootstrap if it's a symlink
+    become: true
+    ignore_errors: yes
+    file:
+      path: "{{openils_path}}/var/templates-bootstrap"
+      state: absent
+    when: symcheck is defined and (symcheck.stat.islnk is defined or symcheck.stat.islnk == true)
+
+  - name: Setting up npm (on local build copy)
+    become: true
+    shell: cd /home/opensrf/repos/Evergreen-build/Open-ILS/web/js/ui/default/staff/ && npm install
+    environment:
+      CHROME_BIN: /usr/bin/chromium-browser
+
+  - name: npm build depending on EG version (on local build copy)
+    become: true
+    shell: cd /home/opensrf/repos/Evergreen-build/Open-ILS/web/js/ui/default/staff/ && npm run build-prod && rsync -L -a --no-owner --no-perms --size-only /home/opensrf/repos/Evergreen-build/Open-ILS/web/js/ui/default/staff/ /home/opensrf/repos/Evergreen/Open-ILS/web/js/ui/default/staff
+    when: evergreen_major_version|int > 2 and evergreen_minor_version|int > 0
+
+  - name: Opt out of Chrome eg2 testing on EG version 3.4 and above
+    lineinfile:
+      dest: /home/opensrf/repos/Evergreen-build/Open-ILS/src/eg2/karma.conf.js
+      state: present
+      regexp: ChromeHeadless
+      line: "    browsers: ['FirefoxHeadless'],"
+    when: evergreen_major_version|int > 2 and evergreen_minor_version|int > 3
+
+  - name: Setting up eg2 for EG version 3.2 and above (on local build copy)
+    become: true
+    shell: cd /home/opensrf/repos/Evergreen-build/Open-ILS/src/eg2/ && npm install
+    when: evergreen_major_version|int > 2 and evergreen_minor_version|int > 1
+
+  - name: Setting up bootstrap opac for EG 3.6 and above
+    become: true
+    shell: cd /home/opensrf/repos/Evergreen-build/Open-ILS/web/opac/deps/ && npm install && rsync -L -a --no-owner --no-perms --size-only /home/opensrf/repos/Evergreen-build/Open-ILS/web/opac/deps/ /home/opensrf/repos/Evergreen/Open-ILS/web/opac/deps
+    when: evergreen_major_version|int > 2 and evergreen_minor_version|int > 5
+
+  - name: make clean Evergreen
+    become: true
+    ignore_errors: yes
+    shell: cd /home/opensrf/repos/Evergreen-build && make clean
+
+  - name: Configuring Evergreen code and make
+    become: true
+    shell: cd /home/opensrf/repos/Evergreen-build && PATH={{openils_path}}/bin:$PATH ./configure --prefix={{openils_path}} --sysconfdir={{openils_path}}/conf && make
+
+  - name: Install Evergreen without xul for EG 3.3 and above
+    become: true
+    shell: cd /home/opensrf/repos/Evergreen-build && make install && chown -R opensrf:opensrf {{openils_path}}
+    when: install_xul_client|bool == false
+
+### Setup EG concerto database
+  - name: Setup EG Enhanced concerto database
+    become: true
+    shell: cd /home/opensrf/repos/Evergreen-build && perl Open-ILS/src/support-scripts/eg_db_config --update-config --service all --create-database --create-schema --create-offline --user {{ database_user }} --password {{ database_password }} --hostname {{ database_host }} --port {{ database_port }} --database {{ database_database }} --admin-user {{ evergreen_global_admin }} --admin-pass {{ evergreen_global_admin_password }} --load-concerto-enhanced
+
+  - name: Check jacket's ac folder for existing symlink
+    become: true
+    stat:
+      path: "{{openils_path}}/var/web/opac/extras/ac"
+    register: jacketsym
+
+  - name: Clear out the jackets folder when it's not a symlink
+    become: true
+    shell: rm -Rf {{openils_path}}/var/web/opac/extras/ac
+    when: shared_jackets_folder is defined and (jacketsym.stat.islnk is not defined or jacketsym.stat.islnk == false)
+
+
+## Evergreen services restart
+  - name: Disable the default apache sites
+    become: true
+    ignore_errors: yes
+    shell: /usr/sbin/a2dissite default-ssl && /usr/sbin/a2dissite 000-default
+  - name: Stop Web services
+    ignore_errors: yes
+    become: true
+    service:
+      name: apache2
+      state: stopped
+# service module is broken for ansible/jammy/docker
+  - name: Starting apache2 manually
+    ignore_errors: yes
+    shell: /etc/init.d/apache2 stop
+    when: ubuntu_version|lower == 'jammy'
+
+  - name: Stop Websocketd
+    become: true
+    ignore_errors: yes
+    shell: "/bin/ps -ef | /bin/grep osrf-websocket-stdio | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9"
+  - name: Stop nginx Websockets proxy
+    ignore_errors: yes
+    become: true
+    service:
+      name: nginx
+      state: stopped
+# service module is broken for ansible/jammy/docker
+  - name: Starting nginx manually
+    ignore_errors: yes
+    shell: /etc/init.d/nginx stop
+    when: ubuntu_version|lower == 'jammy'
+  - name: Stop OpenSRF
+    become: true
+    become_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/osrf_control --localhost --stop-all
+  - name: Stop SIP
+    become: true
+    become_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/oils_ctl.sh -a stop_sip
+  - name: Kill OpenSRF
+    ignore_errors: yes
+    shell: "/bin/ps -ef | /bin/grep OpenSRF | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9"
+  - name: Stopping ejabberd
+    ignore_errors: yes
+    service:
+      name: ejabberd
+      state: stopped
+  - name: Kill ejabberd
+    ignore_errors: yes
+    shell: "/bin/ps -ef | /bin/grep ejabber | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9"
+  - name: Kill Clark
+    ignore_errors: yes
+    shell: /bin/ps -ef | /bin/grep Clark | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9
+  - name: Kill webrick
+    ignore_errors: yes
+    shell: /bin/ps -ef | /bin/grep edi_webrick.rb | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9
+  - name: Kill SIP
+    ignore_errors: yes
+    shell: /bin/ps -ef | /bin/grep -i sip | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9
+
+  - name: Setup external domain name in hosts
+    become: true
+    ignore_errors: yes
+    shell: echo {{ansible_all_ipv4_addresses.0}} {{domain_name}} >> /etc/hosts
+
+  - name: Reset redis config
+    become: true
+    become_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/osrf_control -l --reset-message-bus
+
+  - name: Start OpenSRF
+    become: true
+    become_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/osrf_control --localhost --start-all
+  - name: Pausing for OpenSRF to spawn Drones
+    pause: seconds=5
+  - name: Run autogen
+    become: true
+    become_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell:  export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/autogen.sh -u
+  - name: Setup Lets encrypt folder link
+    become: true
+    become_user: opensrf
+    ignore_errors: yes
+    file:
+      force: yes
+      state: link
+      src: "{{lets_encrypt_shared_web_folder}}"
+      dest: "{{openils_path}}/var/web/.well-known"
+  - name: Setup circ_notices link
+    become: true
+    become_user: opensrf
+    ignore_errors: yes
+    file:
+      force: yes
+      state: link
+      src: "{{shared_circ_notices_folder}}"
+      dest: "{{openils_path}}/var/web/notices"
+
+  - name: Clear out the jackets folder when it's not a symlink
+    become: true
+    shell: rm -Rf {{openils_path}}/var/web/opac/extras/ac
+    when: shared_jackets_folder is defined and (jacketsym.stat.islnk is not defined or jacketsym.stat.islnk == false)
+
+  - name: Create Jackets Symlink
+    become: true
+    become_user: opensrf
+    ignore_errors: yes
+    file:
+      force: yes
+      state: link
+      src: "{{shared_jackets_folder}}"
+      dest: "{{openils_path}}/var/web/opac/extras/ac"
+    when: shared_jackets_folder is defined
+
+  - name: Copy fm_IDL
+    become: true
+    become_user: opensrf
+    shell: cp {{ openils_path }}/conf/fm_IDL.xml {{ openils_path }}/var/web/reports/fm_IDL.xml
+  - name: Start Web services
+    ignore_errors: yes
+    become: true
+    service:
+      name: apache2
+      state: started
+# service module is broken for ansible/jammy/docker
+  - name: Starting apache2 manually
+    ignore_errors: yes
+    shell: /etc/init.d/apache2 start
+    when: ubuntu_version|lower == 'jammy'
+
+  - name: create websocketd start script
+    file:
+      path: /egconfigs/start_websocketd
+      state: touch
+      owner: root
+      group: root
+      mode: '0755'
+  - name: Building /egconfigs/start_websocketd
+    become: true
+    lineinfile: 'dest=/egconfigs/start_websocketd state=present regexp="#!/bin/bas" line="#!/bin/bash"'
+  - name: Building /egconfigs/start_websocketd
+    become: true
+    lineinfile: 'dest=/egconfigs/start_websocketd state=present regexp="websocketd" line="/usr/local/bin/websocketd --loglevel error --port 7682 /openils/bin/osrf-websocket-stdio >& /dev/null &"'
+  - name: Starting websocketd
+    become: true
+    become_user: opensrf
+    shell: '/egconfigs/start_websocketd'
+  - name: Concat the Certificates for nginx
+    become: true
+    shell: cat /etc/apache2/ssl/server.crt > /etc/apache2/ssl/nginx.crt
+  - name: Fix nginx certificate config
+    become: true
+    lineinfile: 'dest=/etc/nginx/sites-available/osrf-ws-http-proxy state=present regexp="ssl_certificate \/" line="ssl_certificate /etc/apache2/ssl/nginx.crt;"'
+  - name: Fix nginx certificate config
+    become: true
+    lineinfile: 'dest=/etc/nginx/sites-available/osrf-ws-http-proxy state=present regexp="ssl_certificate_key\s" line="ssl_certificate_key /etc/apache2/ssl/server.key;"'
+  - name: Start nginx Websockets proxy
+    ignore_errors: yes
+    become: true
+    service:
+      name: nginx
+      state: started
+# service module is broken for ansible/jammy/docker
+  - name: Starting nginx manually
+    ignore_errors: yes
+    shell: /etc/init.d/nginx start
+    when: ubuntu_version|lower == 'jammy'
+
+  - name: copy the oils_sip.xml
+    become: true
+    shell: cp {{ openils_path }}/conf/oils_sip.xml.example {{ openils_path }}/conf/oils_sip.xml && chown opensrf:opensrf -R {{ openils_path }}
+  - lineinfile: dest={{ openils_path }}/conf/oils_sip.xml state=present regexp='<login id="scclient" password="clientpwd"' line='<login id="{{evergreen_global_admin}}" password="{{evergreen_global_admin_password}}" institution="sample"/>'
+  - lineinfile: dest={{ openils_path }}/conf/oils_sip.xml state=present regexp='<institution id="gapines" implementation="OpenILS::SIP">' line='<institution id="sample" implementation="OpenILS::SIP">'
+  - name: Start SIP
+    become: true
+    become_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: "{{openils_path}}/bin/oils_ctl.sh -a start_sip"
+  - name: Putting ping.txt back in rotation
+    become: true
+    ignore_errors: yes
+    shell: mv /root/ping.txt {{openils_path}}/var/web/ping.txt
+#### UTILITY services only
+  - name: Remove Reporter Lock File
+    become: true
+    file: path=/tmp/reporter-LOCK state=absent
+  - name: Start Clark Kent
+    remote_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: "{{openils_path}}/bin/clark-kent.pl -d -c 4"
+
+## Setup Sitemap generator
+  - name: Ensure the cron restart is present
+    cron: user="opensrf" name="Site Map Generator" minute="4" hour="4" job=". /etc/profile && cd {{openils_path}}/var/web && {{openils_path}}/bin/sitemap_generator --config-file {{openils_path}}/conf/opensrf.xml --lib-hostname {{domain_name}}"
+  - name: Run the hold targeter
+    cron: user="opensrf" name="Run the hold targeter" minute="4" job=". /etc/profile && cd {{openils_path}}/bin/hold_targeter.pl {{openils_path}}/conf/opensrf_core.xml"
+  - name: Run the hold thawer
+    cron: user="opensrf" name="Run the hold thawer" minute="4" hour="0" job=". /etc/profile && cd {{openils_path}}/bin/thaw_expired_frozen_holds.srfsh"
+  - name: Generate fines
+    cron: user="opensrf" name="Generate fines" minute="30" hour="0" job=". /etc/profile && cd {{openils_path}}/bin/fine_generator.pl {{openils_path}}/conf/opensrf_core.xml"
+  - name: Run the reshelving completer
+    cron: user="opensrf" name="Run the reshelving completer" minute="2" hour="0" job=". /etc/profile && cd {{openils_path}}/bin/reshelving_complete.srfsh"
+  - name: Run the pending user purger
+    cron: user="opensrf" name="Run the pending user purger" minute="30" hour="2" job=". /etc/profile && cd {{openils_path}}/bin/purge_pending_users.srfsh"
+  - name:  create the list of blocked patrons for offline use
+    cron: user="opensrf" name="create the list of blocked patrons for offline use" minute="30" hour="6" job=". /etc/profile && cd {{openils_path}}/bin/offline-blocked-list.pl {{openils_path}}/conf/opensrf_core.xml > {{openils_path}}/var/web/standalone/list.txt"
+  - name: Run the hard due date updater
+    cron: user="opensrf" name="Run the hard due date updater" minute="2" hour="3" job=". /etc/profile && cd {{openils_path}}/bin/update_hard_due_dates.srfsh"
+  - name: Calculate scores for popularity badges
+    cron: user="opensrf" name="Calculate scores for popularity badges" minute="30" hour="4" job=". /etc/profile && cd {{openils_path}}/bin/badge_score_generator.pl {{openils_path}}/conf/opensrf_core.xml"
+
+  - name: Runs all pending A/T events every half hour
+    cron: user="opensrf" name="Runs all pending A/T events every half hour" minute="30" job=". /etc/profile && cd {{openils_path}}/bin/action_trigger_runner.pl --osrf-config {{openils_path}}/conf/opensrf_core.xml --run-pending"
+  - name: A/T hourly
+    cron: user="opensrf" name="A/T hourly" minute="0" job=". /etc/profile && cd {{openils_path}}/bin/action_trigger_runner.pl --osrf-config {{openils_path}}/conf/opensrf_core.xml --process-hooks --granularity hourly"
+  - name: A/T daily
+    cron: user="opensrf" name="A/T daily" minute="5" hour="3" job=". /etc/profile && cd {{openils_path}}/bin/action_trigger_runner.pl --osrf-config {{openils_path}}/conf/opensrf_core.xml --process-hooks --granularity daily"
+  - name: A/T weekdays
+    cron: user="opensrf" name="A/T weekdays" minute="10" hour="3" weekday="1-5" job=". /etc/profile && cd {{openils_path}}/bin/action_trigger_runner.pl --osrf-config {{openils_path}}/conf/opensrf_core.xml --process-hooks --granularity weekdays"
+  - name: A/T weekly
+    cron: user="opensrf" name="A/T weekly" minute="2" hour="3" weekday="0" job=". /etc/profile && cd {{openils_path}}/bin/action_trigger_runner.pl --osrf-config {{openils_path}}/conf/opensrf_core.xml --process-hooks --granularity weekly"
+  - name: A/T monthly
+    cron: user="opensrf" name="A/T monthly" minute="20" hour="3" day="1" job=". /etc/profile && cd {{openils_path}}/bin/action_trigger_runner.pl --osrf-config {{openils_path}}/conf/opensrf_core.xml --process-hooks --granularity monthly"
+  - name: A/T yearly
+    cron: user="opensrf" name="A/T yearly" minute="25" hour="3" day="1" month="1" job=". /etc/profile && cd {{openils_path}}/bin/action_trigger_runner.pl --osrf-config {{openils_path}}/conf/opensrf_core.xml --process-hooks --granularity yearly"
+
+  - name: Create Evergreen restart services bash checker
+    copy:
+      mode: a+x
+      dest: /home/opensrf/repos/Evergreen/eg_restart_check.sh
+      content: |
+          #!/bin/bash
+          CHECKFILE=/home/opensrf/repos/Evergreen/eg_restart_go
+          if test -f "$CHECKFILE"; then
+              rm $CHECKFILE
+              ansible-playbook /egconfigs/restart_post_boot.yml -v -e "hosts=127.0.0.1" &> "$CHECKFILE"_screenoutput
+          fi
+
+  - name: Setup restart Services
+    cron: user="root" name="Restart Evergreen Services" job=". /etc/profile && cd /home/opensrf/repos/Evergreen && ./eg_restart_check.sh"    
+
+  - name: Create Evergreen Angular watcher/rebuilder
+    copy:
+      owner: opensrf
+      group: opensrf
+      mode: a+x
+      dest: /home/opensrf/repos/Evergreen/angular-watch.sh
+      content: |
+          #!/bin/bash
+          x=1
+          while [ $x -le 28 ]
+          do
+          CHECKFILE=/home/opensrf/repos/Evergreen/eg_rebuild_angular
+          if test -f "$CHECKFILE"; then
+              rm $CHECKFILE
+              x=$(( $x + 100 ))
+              rsync -L -a --delete --no-owner --no-perms --size-only --exclude "node_modules" /home/opensrf/repos/Evergreen/Open-ILS/src/eg2/ /home/opensrf/repos/Evergreen-build/Open-ILS/src/eg2
+              cd /home/opensrf/repos/Evergreen-build/Open-ILS/src/eg2
+              PATH=/usr/local/bin:$PATH
+              NODE_OPTIONS=--max-old-space-size=3072 ng build --configuration=production &> "$CHECKFILE"_screenoutput
+          fi
+          sleep 2
+          x=$(( $x + 1 ))
+          done
+
+  - name: Setup angular watch cron
+    cron: user="root" name="Angular Rebuild Watch" job=". /etc/profile && cd /home/opensrf/repos/Evergreen && ./angular-watch.sh"    
+
+  - name: Setup ping.txt
+    remote_user: opensrf
+    shell: echo pong > {{openils_path}}/var/web/ping.txt && chown opensrf:opensrf {{openils_path}}/var/web/ping.txt
+  - name: chowning openils
+    become: true
+    shell: chown -R opensrf:opensrf {{openils_path}}
+
+  - name: Touch eg_rebuild_angular
+    become: true
+    file:
+      path: /home/opensrf/repos/Evergreen/eg_rebuild_angular
+      state: touch
+      mode: u=rw,g=rw,o=rw
+
+  - name: starting cron
+    ignore_errors: yes
+    service:
+      name: cron
+      state: started
+# service module is broken for ansible/jammy/docker
+  - name: Starting cron manually
+    ignore_errors: yes
+    shell: /etc/init.d/cron restart
+    when: ubuntu_version|lower == 'jammy'
+
+## now, we need to make symlinks back to the Evergreen repository folder
+## {{openils_path}}/var/web/js/ui/default/staff
+  - name: Check {{openils_path}}/var/web/js/ui/default/staff folder for existing symlink
+    become: true
+    stat:
+      path: "{{openils_path}}/var/web/js/ui/default/staff"
+    register: symcheck
+  - name: Delete {{openils_path}}/var/web/js/ui/default/staff if it's not a symlink
+    become: true
+    ignore_errors: yes
+    file:
+      path: "{{openils_path}}/var/web/js/ui/default/staff"
+      state: absent
+    when: symcheck is defined and (symcheck.stat.islnk is not defined or symcheck.stat.islnk == false)
+  - name: Create {{openils_path}}/var/web/js/ui/default/staff Symlink
+    become: true
+    become_user: opensrf
+    ignore_errors: yes
+    file:
+      force: yes
+      state: link
+      src: "/home/opensrf/repos/Evergreen/Open-ILS/web/js/ui/default/staff"
+      dest: "{{openils_path}}/var/web/js/ui/default/staff"
+
+## {{openils_path}}/var/web/eg2
+  - name: Check {{openils_path}}/var/web/eg2 folder for existing symlink
+    become: true
+    stat:
+      path: "{{openils_path}}/var/web/eg2"
+    register: symcheck
+  - name: Delete {{openils_path}}/var/web/eg2 if it's not a symlink
+    become: true
+    ignore_errors: yes
+    file:
+      path: "{{openils_path}}/var/web/eg2"
+      state: absent
+    when: symcheck is defined and (symcheck.stat.islnk is not defined or symcheck.stat.islnk == false)
+
+  - name: Create /home/opensrf/repos/Evergreen-build/Open-ILS/web/eg2 folder if it doesn't exist
+    become: true
+    ignore_errors: yes
+    file:
+      state: directory
+      path: "/home/opensrf/repos/Evergreen-build/Open-ILS/web/eg2"
+
+  - name: Create {{openils_path}}/var/web/eg2 Symlink
+    become: true
+    become_user: opensrf
+    ignore_errors: yes
+    file:
+      force: yes
+      state: link
+      src: "/home/opensrf/repos/Evergreen-build/Open-ILS/web/eg2"
+      dest: "{{openils_path}}/var/web/eg2"
+
+## /usr/local/share/perl/5.30.0/OpenILS
+  - name: Check /usr/local/share/perl/5.30.0/OpenILS folder for existing symlink
+    become: true
+    stat:
+      path: /usr/local/share/perl/5.30.0/OpenILS
+    register: symcheck
+  - name: Delete /usr/local/share/perl/5.30.0/OpenILS if it's not a symlink
+    become: true
+    ignore_errors: yes
+    file:
+      path: /usr/local/share/perl/5.30.0/OpenILS
+      state: absent
+    when: symcheck is defined and (symcheck.stat.islnk is not defined or symcheck.stat.islnk == false)
+  - name: Create /usr/local/share/perl/5.30.0/OpenILS Symlink
+    become: true
+    ignore_errors: yes
+    file:
+      force: yes
+      state: link
+      src: "/home/opensrf/repos/Evergreen/Open-ILS/src/perlmods/lib/OpenILS"
+      dest: "/usr/local/share/perl/5.30.0/OpenILS"
+
+## {{openils_path}}/var/web/opac/deps
+  - name: Check {{openils_path}}/var/web/opac/deps folder for existing symlink
+    become: true
+    stat:
+      path: "{{openils_path}}/var/web/opac/deps"
+    register: symcheck
+  - name: Delete {{openils_path}}/var/web/opac/deps if it's not a symlink
+    become: true
+    ignore_errors: yes
+    file:
+      path: "{{openils_path}}/var/web/opac/deps"
+      state: absent
+    when: symcheck is defined and (symcheck.stat.islnk is not defined or symcheck.stat.islnk == false)
+  - name: Create {{openils_path}}/var/web/opac/deps Symlink
+    become: true
+    become_user: opensrf
+    ignore_errors: yes
+    file:
+      force: yes
+      state: link
+      src: "/home/opensrf/repos/Evergreen/Open-ILS/web/opac/deps"
+      dest: "{{openils_path}}/var/web/opac/deps"
+
+## {{openils_path}}/var/templates
+  - name: Check {{openils_path}}/var/templates folder for existing symlink
+    become: true
+    stat:
+      path: "{{openils_path}}/var/templates"
+    register: symcheck
+  - name: Delete {{openils_path}}/var/templates if it's not a symlink
+    become: true
+    ignore_errors: yes
+    file:
+      path: "{{openils_path}}/var/templates"
+      state: absent
+    when: symcheck is defined and (symcheck.stat.islnk is not defined or symcheck.stat.islnk == false)
+  - name: Create {{openils_path}}/var/templates Symlink
+    become: true
+    become_user: opensrf
+    ignore_errors: yes
+    file:
+      force: yes
+      state: link
+      src: "/home/opensrf/repos/Evergreen/Open-ILS/src/templates"
+      dest: "{{openils_path}}/var/templates"
+
+## {{openils_path}}/var/templates-bootstrap
+  - name: Check {{openils_path}}/var/templates-bootstrap folder for existing symlink
+    become: true
+    stat:
+      path: "{{openils_path}}/var/templates-bootstrap"
+    register: symcheck
+  - name: Delete {{openils_path}}/var/templates-bootstrap if it's not a symlink
+    become: true
+    ignore_errors: yes
+    file:
+      path: "{{openils_path}}/var/templates-bootstrap"
+      state: absent
+    when: symcheck is defined and (symcheck.stat.islnk is not defined or symcheck.stat.islnk == false)
+  - name: Create {{openils_path}}/var/templates-bootstrap Symlink
+    become: true
+    become_user: opensrf
+    ignore_errors: yes
+    file:
+      force: yes
+      state: link
+      src: "/home/opensrf/repos/Evergreen/Open-ILS/src/templates-bootstrap"
+      dest: "{{openils_path}}/var/templates-bootstrap"
+
+...

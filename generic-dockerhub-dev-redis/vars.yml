@@ -1,0 +1,107 @@
+---
+# Allowed values: xenial, bionic, focal, jammy
+# Be sure and update Dockerfile to match the version that you are calling here
+# For reference: xenial = 16.04, bionic = 18.04, focal = 20.04, jammy = 22.04
+# NOTE: xenial is not supported due to the nodejs stack issues, but left here for reference in case you want to hack it
+# Evergreen didn't support ubuntu bionic until version 3.3
+  ubuntu_version: jammy
+  evergreen_version: 3.12.1
+# This is tempermental. If you turn this setting on, you might end up having to manually edit the resulting installation
+# Particularly eg_vhost.conf
+  add_evergreen_language_support: no
+# You can manually assign the Evergreen git branch, or let this regular expression figure it out based on evergreen_git_branch
+  evergreen_git_branch: main
+
+  evergreen_major_version: "{{evergreen_version|regex_replace('^(\\d*)\\..*$', '\\1') }}"
+  evergreen_minor_version: "{{evergreen_version|regex_replace('^\\d*\\.(\\d*)\\.?.*$', '\\1') }}"
+  evergreen_bug_version: "{{evergreen_version|regex_replace('^\\d*\\.\\d*\\.?(\\d*).*$', '\\1') }}"
+  install_xul_client: "{% if (evergreen_major_version|int > 2 and evergreen_minor_version|int < 3) or evergreen_major_version|int == 2 %}yes{% else %}no{% endif %}"
+  evergreen_stamp_id: "{{ 'rel_' + (evergreen_version|regex_replace('\\.', '_')) }}"
+  postgres_version: "{% if ubuntu_version|lower == 'jammy' or ubuntu_version|lower == 'focal' %}10{% elif ubuntu_version|lower == 'bionic' %}9.6{% else %}9.5{% endif %}"
+  websocketd_version: 0.3.0
+  websocketd_filename: "websocketd-{{ websocketd_version }}-linux_{% if ansible_architecture == 'aarch64' %}arm64{% else %}amd64{% endif %}.zip"
+  angular_build_command: "ng build {% if (evergreen_major_version|int == 3 and evergreen_minor_version|int < 9) %}--prod{% else %}--configuration=production{% endif %}"
+
+# The latest version of OpenSRF seems to work with all versions of Evergreen.
+  opensrf_git_branch: main
+
+# This directory will be linked to /openilspath/var/web/.well-known
+  lets_encrypt_shared_web_folder: /mnt/evergreen/letsencrypt_shared_web_directory/.well-known
+
+# This variable will create a sym link to /openilspath/var/web/reporter  
+  shared_reports_folder: /mnt/evergreen/reports
+
+# This variable will create a sym link to /openilspath/var/web/notices  
+  shared_circ_notices_folder: /mnt/evergreen/circ_notices
+# Custom script to call during boot time. It needs to be exposed to the container
+# errors are ignored, but this variable needs to exist. Set it to something regardless
+# This is a mechanism for you to do something custom to the OS upon boot. Anything you can
+# do with a shell script. Setting SSL certificates, putting in place custom tt2 files, etc.
+  sync_openils_sub_folders_cmd: /mnt/evergreen/apps/syncope
+
+
+  os_user_password: password
+  openils_path: /openils
+
+  domain_name: localhost.localdomain.org
+  database_host: localhost
+  database_database: evergreen
+  database_port: 5432
+  database_user: evergreen
+  database_password: databasepassword
+  evergreen_global_admin: admin
+  evergreen_global_admin_password: demo123
+  sender_address: no-reply@localhost.com
+  base_reporter_uri: https://localhost/reporter/
+  reporter_output_folder: /openils/var/web/reporter
+  opensrf_zip_file_line: <zips_file>/openils/conf/zips.txt</zips_file>
+  opensrf_memcached_server: 127.0.0.1
+  opensrf_memcached_port: 11211
+  use_custom_opensrf_xml: no
+  Evergreen_cherry_picks: []
+  OpenSRF_cherry_picks: [
+'5ca1b55cecd4f4b19bbef2a3bcf2da87b8c14881',
+'b5a9c9a2571733315e8a7fb2d578717d55809ee7',
+'54bbfec7e871499e6fdc08c24e46f2469ea87c8e',
+'5100ca1b68891597076d0afac4ab563c84a8751b',
+'578bcebf344f7dcc9047ee79dc8213f3bf35459d',
+'40a90b55efd2b3b0879cbf65b66c14611ed8f77d',
+'911d5e3fd8ca43fac8fe522be36179aeb20d5afa',
+'969e1f5c14f57e9fb974a769474b1f08b31f8fe3',
+'0b5ad1c301ae85ba058c82941b169764209ee6b8',
+'152fbfc97c59bedc4ddad7469f84c5ac466130df',
+'8d39c53ff06a8b23e737055de17cfd69670a7f19',
+'cae2d6e089e05e1e4ce04c2886f3b9a3a1eec283',
+'94cf15481789b36f0445f723886d542923bf4d33',
+'e7361542539eab72aa4653600fb4db74c8247282',
+'82222487ac819f6a4cfd8b64025a4e25d06f537f',
+'835c6aef1bede9fe17300731fad087fa7b7ce07b',
+'c9aed43be74f678272c9254c6d1a41fc7b6e1413',
+'242b2a2a7d2209c6817d551bad4b4c1c3cea5c6d',
+'0f9404d2692cd7525647e6f4cc8bf10e0c9de0b4',
+'52cd63b01c88b84687684652854213044768d8ed',
+'48c2856e33c3c6d285ad344e2809ec17589dcab5',
+'6989238a682a3d43f8e7ec591ccc4e341080f0b1',
+'9e108bb0086d166f11937de6557dedc20894baac',
+'0b274e35bb09068839724e775b798c641b74917e',
+'e2f30f39e8f8673d76e3bdc5ff25995c5dbaa206',
+'17dd7e51944266f0f2138063f7fb30b5f45fd352',
+'6143628c2cffd620ece29174ce69a64bc9b7fba8',
+'c137d1d8b976c6f044695404298940a0af0fc39c',
+'bd556e1a0e2a91407bae10f65acf7ddc5e0fbb31',
+'f15d8f1395572964e8f07e8284462895aa86e5d7',
+'5409086c8985eb7cf3b62005624376afe01a4fa1',
+'aca7f9b60b8510bac16b6dffa51fefa3763252a4',
+'5313f0fa047b426d287a2c7d3987a001fa865f74',
+'090690cf6ce70bcae8c89de40f7ebde33ad9b5f8',
+'3e5f3838d29c5a0cf6b20f4eb12a8e906837644f',
+'864b4548094bdd8780219e2adc94cf8196402312',
+'08d69c4b518d738988cf0fed23bc15583a7a659f',
+'64104b9e5036ef90fc5a3549902aa067516f4661',
+'8aa8772ba2ec4e7e809dc68db3475415d50ff2f2',
+'9e89bb861c8bf6134c7047b4965cec0546d80f80',
+'2d5d55574f347e63c6067252c8ebbb1baadde106',
+]
+  SIPServer_cherry_picks: []
+  install_pg_tap: yes
+...

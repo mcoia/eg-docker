@@ -1,0 +1,856 @@
+---
+#ansible-playbook /mnt/evergreen/playbooks/restart_app_services.yml --private-key /home/user/.ssh/id_rsa -vvvv -e "hosts=192.168.12.49"
+
+- hosts: '{{hosts}}'
+  connection: local
+  remote_user: user
+  become_method: sudo
+  vars_files:
+    - vars.yml
+  tasks:
+  - name: Prints user ansible env
+    ansible.builtin.debug:
+      msg: "{{ ansible_env }}"
+
+  - name: Starting ssh
+    ignore_errors: yes
+    service:
+      name: ssh
+      state: started
+
+# service module is broken for ansible/jammy/docker
+  - name: Starting ssh manually
+    ignore_errors: yes
+    shell: /etc/init.d/ssh restart
+    when: ubuntu_version|lower == 'jammy'
+
+  - name: Starting syslog-ng
+    ignore_errors: yes
+    service:
+      name: syslog-ng
+      state: started
+
+# service module is broken for ansible/jammy/docker
+  - name: Starting syslog-ng manually
+    ignore_errors: yes
+    shell: /etc/init.d/syslog-ng restart
+    when: ubuntu_version|lower == 'jammy'
+
+  - name: Adding user 'user' to group 'sudo'
+    become: true
+    user:
+      name: user 
+      groups: sudo
+      append: yes
+
+  - name: Removing password requirement for group sudo
+    become: true
+    lineinfile: "dest=/etc/sudoers state=present regexp='^%sudo' line='%sudo ALL=(ALL) NOPASSWD: ALL'"
+
+  - name: Setting Timezone
+    become: true
+    timezone: 
+      name: 'America/Chicago'
+
+  - name: Chowning home directories
+    become: true
+    ignore_errors: yes
+    shell: chown -R user:user /home/user && chown -R evergreen:evergreen /home/evergreen && chown -R opensrf:opensrf /home/opensrf && chown -R ubuntu:ubuntu /home/ubuntu && chown -R mcoia:mcoia /home/mcoia
+
+## Fix ulimits
+  - name: Setting SOFT limit for number of processes (nproc) to 65535 in /etc/security/limits.conf
+    lineinfile: "dest=/etc/security/limits.conf state=present regexp='\\* soft     nproc' line='* soft     nproc          65535'"
+  - name: Setting HARD limit for number of processes (nproc) to 65535 in /etc/security/limits.conf
+    lineinfile: "dest=/etc/security/limits.conf state=present regexp='\\* hard     nproc' line='* hard     nproc          65535'"
+  - name: Setting SOFT limit for number of files (nfiles) to 65535 in /etc/security/limits.conf
+    lineinfile: "dest=/etc/security/limits.conf state=present regexp='\\* soft     nofile' line='* soft     nofile          65535'"
+  - name: Setting HARD limit for number of files (nfiles) to 65535 in /etc/security/limits.conf
+    lineinfile: "dest=/etc/security/limits.conf state=present regexp='\\* hard     nofile' line='* hard     nofile          65535'"
+  - name: Setting DefaultLimitNOFILE to 65535 in /etc/systemd/system.conf
+    lineinfile: "dest=/etc/systemd/system.conf state=present regexp='DefaultLimitNOFILE' line='DefaultLimitNOFILE=65536'"
+  - name: Setting DefaultLimitNOFILE to 65535 in /etc/systemd/user.conf
+    lineinfile: "dest=/etc/systemd/user.conf state=present regexp='DefaultLimitNOFILE' line='DefaultLimitNOFILE=65536'"
+
+  - name: Creating repo folder
+    become_user: opensrf
+    file: path=/home/opensrf/repos state=directory owner=opensrf group=opensrf mode=0775
+  - stat: path=/home/opensrf/repos/OpenSRF
+    register: opensrfgit
+  - stat: path=/home/opensrf/repos/Evergreen
+    register: evergreengit
+
+  - name: Cloning Opensrf git
+    when: opensrfgit.stat.isdir is not defined
+    become: true
+    become_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: cd /home/opensrf/repos && git clone git://git.evergreen-ils.org/OpenSRF.git
+
+  - name: clone Evergreen repo
+    when: evergreengit.stat.isdir is not defined
+    become: true
+    become_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: cd /home/opensrf/repos && git clone git://git.evergreen-ils.org/Evergreen.git
+
+  - name: OpenSRF Git Add remote
+    become: true
+    become_user: opensrf
+    shell: cd /home/opensrf/repos/OpenSRF && git remote add -f working git://git.evergreen-ils.org/working/OpenSRF.git
+    ignore_errors: yes
+
+  - name: OpenSRF Git Add remote
+    become: true
+    become_user: opensrf
+    shell: cd /home/opensrf/repos/OpenSRF && git remote set-url --push working git@git.evergreen-ils.org:working/OpenSRF.git
+    ignore_errors: yes
+
+  - name: OpenSRF Checkout Branch
+    become: true
+    become_user: opensrf
+    shell: cd /home/opensrf/repos/OpenSRF && git fetch --all && git pull && git checkout {{opensrf_git_branch}} && git fetch --all && git pull && git config --global user.email "just_need_to_satisfy_git@yoyo.com" && git config --global user.name "checkoutuser"
+
+  - name: OpenSRF Git Cherry pick loop Debug
+    become: true
+    become_user: opensrf
+    debug: msg="Cherry Picking {{ item }}"
+    with_items: "{{ OpenSRF_cherry_picks }}"
+
+  - name: OpenSRF Git Cherry pick loop
+    become: true
+    become_user: opensrf
+    shell: cd /home/opensrf/repos/OpenSRF && git cherry-pick {{ item }}
+    with_items: "{{ OpenSRF_cherry_picks }}"
+
+  - name: Install pkgconf just in case
+    become: true
+    apt:
+      name: pkgconf
+      state: present
+
+  - name: Gut those peski packages that we don't need using Pete's sed
+    become: true
+    shell: cd /home/opensrf/repos/OpenSRF && /usr/bin/sed -i '/python-memcache/ s/python-memcache//' src/extras/Makefile.install && /usr/bin/sed -i '/python-pyxmpp/ s/python-pyxmpp//' src/extras/Makefile.install
+    when: ubuntu_version|lower == 'jammy' or ubuntu_version|lower == 'focal'
+
+  - name: OpenSRF needs to be older to support xenial
+    become: true
+    shell: cd /home/opensrf/repos/OpenSRF && git clean -x -f -d && git checkout main && git checkout osrf_rel_3_2_1
+    when: ubuntu_version|lower == 'xenial'
+
+  - name: Install OpenSRF prereqs
+    become: true
+    shell: apt-get update && cd /home/opensrf/repos/OpenSRF && export PERL_MM_USE_DEFAULT=1 && autoreconf -i && make -f src/extras/Makefile.install ubuntu-{{ ubuntu_version|lower }} && chown opensrf:opensrf -R .
+
+  - name: Switch OpenSRF branch back to desired version
+    become: true
+    shell: cd /home/opensrf/repos/OpenSRF && git clean -x -f -d && git checkout main && git checkout {{opensrf_git_branch}} && export PERL_MM_USE_DEFAULT=1 && autoreconf -i && chown opensrf:opensrf -R /home/opensrf/repos/OpenSRF
+    when: ubuntu_version|lower == 'xenial'
+
+### Installing OpenSRF from opensrf_git_branch 
+  - name: Make Opensrf as opensrf
+    become: true
+    become_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: cd /home/opensrf/repos/OpenSRF && autoreconf -i && ./configure --prefix={{openils_path}} --sysconfdir={{openils_path}}/conf --with-websockets-port=443 && make
+
+  - name: Make install OpenSRF
+    become: true
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: cd /home/opensrf/repos/OpenSRF && make install && chown -R opensrf:opensrf {{openils_path}}
+
+  - name: Add local IP to hosts
+    become: true
+    shell: echo 127.0.0.1 localhost public.localhost private.localhost >> /etc/hosts
+    ignore_errors: yes
+
+  - name: Setup redis-accounts config file
+    become: true
+    copy:
+      remote_src: true
+      src: "{{openils_path}}/conf/redis-accounts.txt.example"
+      dest: "{{openils_path}}/conf/redis-accounts.txt"
+      force: no
+
+  - name: update /etc/ld.so.conf.d/opensrf.conf and ldconfig
+    become: true
+    shell: echo {{openils_path}}/lib > /etc/ld.so.conf.d/opensrf.conf && ldconfig
+
+# Fix default redis config file
+  - lineinfile: "dest=/etc/redis/redis.conf state=present regexp='save \"\"' line='save \"\"'"
+  - lineinfile: "dest=/etc/redis/redis.conf state=present regexp='save[\\t\\s]+\\d' line=''"
+  - lineinfile: "dest=/etc/redis/redis.conf state=present regexp='save[\\t\\s]+\\d' line=''"
+  - lineinfile: "dest=/etc/redis/redis.conf state=present regexp='save[\\t\\s]+\\d' line=''"
+
+  - name: restarting redis
+    ignore_errors: yes
+    service:
+      name: redis-server
+      state: restarted
+
+# service module is broken for ansible/jammy/docker
+  - name: starting redis-server manually
+    ignore_errors: yes
+    shell: /etc/init.d/redis-server restart
+    when: ubuntu_version|lower == 'jammy'
+
+  - lineinfile: "dest=/home/opensrf/.bashrc state=present line='export PATH=$PATH:{{openils_path}}/bin'"
+
+  - name: Install unzip
+    apt: name=unzip
+
+  - name: Download websocketsd
+    become: true
+    shell: "cd /tmp && wget https://github.com/joewalnes/websocketd/releases/download/v{{ websocketd_version }}/{{ websocketd_filename }}"
+
+  - name: Unzip Websockets
+    become: true
+    shell: "cd /tmp && unzip -u {{ websocketd_filename }} && cp websocketd /usr/local/bin/"
+
+# # ### OPENSRF IS FINISHED
+
+### STARTING EVERGREEN SECTION
+
+### if you chose bionic but Evergreen version < 3.3, then we need to install this step with a newer version of evergreen
+  - name: register special case
+    set_fact: switch_to_newer_version='yes'
+    when: (ubuntu_version|lower == 'focal' or ubuntu_version|lower == 'bionic' or ubuntu_version|lower == 'jammy') and ( (evergreen_major_version|int == 3 and evergreen_minor_version|int < 6) or (evergreen_major_version|int < 3) )
+
+  - name: Evergreen Git fetch all
+    become: true
+    become_user: opensrf
+    shell: cd /home/opensrf/repos/Evergreen && git reset --hard && git checkout tags/rel_3_6_0 && git fetch --all && git pull
+    when: switch_to_newer_version is defined
+  - name: Setup Evergreen prerequisites 
+    become: true
+    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}
+    when: switch_to_newer_version is defined
+  - name: Setup Evergreen prerequisites 2nd trip through
+    become: true
+    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}
+    when: switch_to_newer_version is defined
+  - name: Setup Evergreen developer packages
+    become: true
+    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}-developer
+    when: switch_to_newer_version is defined
+  - name: Setup Evergreen translator packages
+    become: true
+    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}-translator
+    when: switch_to_newer_version is defined
+  - name: Setup Evergreen Postgres packages
+    become: true
+    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install postgres-server-ubuntu-{{ ubuntu_version }}
+    when: switch_to_newer_version is defined
+
+  - name: Evergreen Git fetch all
+    become: true
+    become_user: opensrf
+    shell: cd /home/opensrf/repos/Evergreen && git clean -x -f -d && git checkout {{evergreen_git_branch}} && git fetch --all && git pull && git config --global user.email "just_need_to_satisfy_git@yoyo.com" && git config --global user.name "checkoutuser"
+
+  - name: Evergreen Git Cherry pick loop Debug
+    become: true
+    become_user: opensrf
+    debug: msg="Cherry Picking {{ item }}"
+    with_items: "{{ Evergreen_cherry_picks }}"
+  - name: Evergreen Git Cherry pick loop
+    become: true
+    become_user: opensrf
+    shell: cd /home/opensrf/repos/Evergreen && git cherry-pick {{ item }}
+    with_items: "{{ Evergreen_cherry_picks }}"
+
+  - name: Setup Evergreen prerequisites 
+    become: true
+    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}
+    when: switch_to_newer_version is not defined
+
+  - name: Setup Evergreen prerequisites 2nd trip through
+    become: true
+    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}
+    when: switch_to_newer_version is not defined
+
+  - name: Setup Evergreen developer packages
+    become: true
+    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}-developer
+    when: switch_to_newer_version is not defined
+
+  - name: Setup Evergreen translator packages
+    become: true
+    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}-translator
+    when: switch_to_newer_version is not defined
+
+## Install Database
+  - name: Setup Evergreen Postgres packages postgres-server-ubuntu-{{ ubuntu_version }}-{{ postgres_version }}
+    become: true
+    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install postgres-server-ubuntu-{{ ubuntu_version }}-{{ postgres_version }}
+    when: postgres_version|int > 9.6
+
+  - name: Setup Evergreen Postgres packages postgres-server-ubuntu-{{ ubuntu_version }}
+    become: true
+    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install postgres-server-ubuntu-{{ ubuntu_version }}
+    when: postgres_version|int < 10 and switch_to_newer_version is not defined
+
+  - name: Allow postgres to talk outside
+    become: true
+    ignore_errors: yes
+    lineinfile: "dest=/etc/postgresql/{{ postgres_version }}/main/pg_hba.conf state=present regexp='host    all     evergreen' line='host    all     evergreen       0.0.0.0/0     md5'"
+
+  - name: Allow postgres to talk outside postgresql.conf
+    become: true
+    ignore_errors: yes
+    lineinfile: "dest=/etc/postgresql/{{ postgres_version }}/main/postgresql.conf state=present regexp='listen_addresses' line='listen_addresses = \\'*\\''"
+
+  - name: Setup postgresql.conf (if you have a custom file in /egconfigs)
+    become: true
+    ignore_errors: yes
+    shell: cp /egconfigs/postgresql.conf /etc/postgresql/{{ postgres_version }}/main
+
+  - name: Ensure that plperl is installed
+    become: true
+    ignore_errors: yes
+    shell: apt-get -y install postgresql-plperl-{{postgres_version}}
+
+  - name: Disable transparent_hugepages in grub
+    become: true
+    ignore_errors: yes
+    lineinfile: dest=/etc/default/grub state=present regexp='GRUB_CMDLINE_LINUX_DEFAULT' line='GRUB_CMDLINE_LINUX_DEFAULT="transparent_hugepage=never"'
+
+  - name: Disable transparent_hugepages
+    become: true
+    ignore_errors: yes
+    shell: echo never > /sys/kernel/mm/transparent_hugepage/enabled
+
+  - name: update PO files
+    become: true
+    become_user: opensrf
+    ignore_errors: yes
+    shell: cd /home/opensrf/repos/Evergreen/build/i18n && mkdir locale && make newpot && make LOCALE=fr-CA updatepo && make LOCALE=es-ES updatepo && make LOCALE=cs-CZ updatepo && make LOCALE=ar-JO updatepo && make LOCALE=fr-CA install && make LOCALE=es-ES install && make LOCALE=cs-CZ install && make LOCALE=ar-JO install
+    when: evergreen_major_version|int > 2 and evergreen_minor_version|int > 5 and add_evergreen_language_support|bool == true
+
+  - name: starting postgres
+    ignore_errors: yes
+    service:
+      name: postgresql
+      state: started
+
+# service module is broken for ansible/jammy/docker
+  - name: starting postgres manually
+    ignore_errors: yes
+    shell: /etc/init.d/postgresql restart
+    when: ubuntu_version|lower == 'jammy'
+
+  - name: Setup Evergreen database
+    become: true
+    become_user: postgres
+    shell: psql -c "CREATE ROLE {{ database_database }} PASSWORD '{{ database_password }}' SUPERUSER LOGIN INHERIT CREATEDB CREATEROLE"
+
+### Change the password for "user"
+  - name: Change the password for "user"
+    become: true
+    shell: '/bin/echo -e "{{os_user_password}}\n{{os_user_password}}\n" | /usr/bin/passwd user'
+  - name: Running autoreconf on the git repo
+    become: true
+    become_user: opensrf
+    shell: cd /home/opensrf/repos/Evergreen && autoreconf -i
+
+  - name: Installing Grunt globally for older versions of EG
+    become: true
+    shell: cd /home/opensrf/repos/Evergreen && npm install -g grunt-cli
+    when: (evergreen_major_version|int > 2 and evergreen_minor_version|int < 1) or evergreen_major_version|int == 2
+  - name: Setting up npm
+    become: true
+    become_user: opensrf
+    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/web/js/ui/default/staff/ && npm install
+    environment:
+      CHROME_BIN: /usr/bin/chromium-browser
+
+### This doesn't work for several reasons. The default installation of nodejs for 16.04 is v4.2.6
+### that old version of node, doesn't understand the new versions of grunt code, Basically, this script can't support xenial
+  - name: Grunting for older versions of EG
+    become: true
+    become_user: opensrf
+    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/web/js/ui/default/staff && grunt all
+    ignore_errors: yes
+    when: ( (evergreen_major_version|int > 2 and evergreen_minor_version|int < 1) or evergreen_major_version|int == 2 )
+
+  - name: npm build depending on EG version
+    become: true
+    become_user: opensrf
+    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/web/js/ui/default/staff/ && npm run build-prod
+    when: evergreen_major_version|int > 2 and evergreen_minor_version|int > 0
+
+  - name: Opt out of Chrome eg2 testing on EG version 3.4 and above
+    lineinfile:
+      dest: /home/opensrf/repos/Evergreen/Open-ILS/src/eg2/karma.conf.js
+      state: present
+      regexp: ChromeHeadless
+      line: "    browsers: ['FirefoxHeadless'],"
+    when: evergreen_major_version|int > 2 and evergreen_minor_version|int > 3
+
+  - name: Add locale picker to Angular client
+    lineinfile:
+      dest: /home/opensrf/repos/Evergreen/Open-ILS/src/eg2/src/environments/{{item}}
+      state: present
+      regexp: "\\['en-US'\\]"
+      line: "      locales: ['en-US', 'cs-CZ']"
+    when: evergreen_major_version|int > 2 and evergreen_minor_version|int > 3 and add_evergreen_language_support|bool == true
+    loop:
+      - environment.ts
+      - environment.prod.ts
+
+  - name: Setting up eg2 for EG version 3.2 and above
+    become: true
+    become_user: opensrf
+    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/src/eg2/ && npm install && {{ angular_build_command }}
+    when: evergreen_major_version|int > 2 and evergreen_minor_version|int > 1
+
+  - name: Setting up bootstrap opac for EG 3.6 and above
+    become: true
+    become_user: opensrf
+    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/web/opac/deps/ && npm install
+    when: evergreen_major_version|int > 2 and evergreen_minor_version|int > 5
+
+  - name: Configuring Evergreen code and make
+    become: true
+    become_user: opensrf
+    shell: cd /home/opensrf/repos/Evergreen && PATH={{openils_path}}/bin:$PATH ./configure --prefix={{openils_path}} --sysconfdir={{openils_path}}/conf && make
+
+  - name: Install Evergreen with xul for older versions of EG
+    become: true
+    shell: cd /home/opensrf/repos/Evergreen && make STAFF_CLIENT_STAMP_ID={{evergreen_stamp_id}} install
+    when: install_xul_client|bool == true
+
+  - name: Remove xul server link
+    file:
+      path: "{{openils_path}}/var/web/xul/server"
+      state: absent
+    when: install_xul_client|bool == true
+
+  - name: Setup Symlink {{openils_path}}/var/web/xul/server
+    become: true
+    shell: cd {{openils_path}}/var/web/xul && ln -sf {{evergreen_stamp_id}}/server server && chown -R opensrf:opensrf {{openils_path}}
+    when: install_xul_client|bool == true
+
+  - name: Install Evergreen without xul for EG 3.3 and above
+    become: true
+    shell: cd /home/opensrf/repos/Evergreen && make install && chown -R opensrf:opensrf {{openils_path}}
+    when: install_xul_client|bool == false
+
+  - name: Dojoify
+    become: true
+    become_user: opensrf
+    shell: cd /home/opensrf && wget http://download.dojotoolkit.org/release-1.3.3/dojo-release-1.3.3.tar.gz && tar -C {{openils_path}}/var/web/js -xzf dojo-release-1.3.3.tar.gz && cp -r {{openils_path}}/var/web/js/dojo-release-1.3.3/* {{openils_path}}/var/web/js/dojo/.
+
+  - name: register apache directory
+    set_fact: apache_folder='apache'
+
+### Evergreen moved the eg_startup file from "apache" to apache_24 starting at Evergreen 3.2
+  - name: register apache directory
+    set_fact: apache_folder='apache_24'
+    when: evergreen_major_version|int > 2 and evergreen_minor_version|int > 1
+
+  - name: Copy default Evergreen apache configs
+    become: true
+    shell: cd /home/opensrf/repos/Evergreen && cp Open-ILS/examples/apache_24/eg_24.conf /etc/apache2/sites-available/eg.conf && cp Open-ILS/examples/apache_24/eg_vhost_24.conf /etc/apache2/eg_vhost.conf && cp Open-ILS/examples/{{ apache_folder }}/eg_startup /etc/apache2/
+
+  - file: path=/etc/apache2/ssl state=directory
+  - name: Setup SSL Certs
+    become: true
+    shell: cd /etc/apache2/ssl && openssl req -new -x509 -days 365 -nodes -out server.crt -keyout server.key -subj "/C=US/ST=MO/L=Columbia/O=MOBIUS/OU=IT Department/CN={{domain_name}}"
+  - lineinfile: "dest=/etc/apache2/sites-available/eg.conf state=present regexp='Require host 10.0.0.0\\/8' line='Require all granted'"
+  - lineinfile: "dest=/etc/apache2/envvars state=present regexp='APACHE_RUN_USER' line='export APACHE_RUN_USER=opensrf'"
+  - lineinfile: "dest=/etc/apache2/apache2.conf state=present regexp='KeepAliveTimeout' line='KeepAliveTimeout 1'"
+  - lineinfile: "dest=/etc/apache2/apache2.conf state=present regexp='MaxKeepAliveRequests' line='MaxKeepAliveRequests 100'"
+
+  - lineinfile: "dest=/etc/apache2/mods-available/mpm_prefork.conf state=absent regexp='MaxConnectionsPerChild'"
+  - lineinfile: "dest=/etc/apache2/mods-available/mpm_prefork.conf state=present regexp='StartServers' insertbefore='<\\/IfModule>' line='StartServers   20'"
+  - lineinfile: "dest=/etc/apache2/mods-available/mpm_prefork.conf state=present regexp='MinSpareServers' insertbefore='<\\/IfModule>' line='MinSpareServers   5'"
+  - lineinfile: "dest=/etc/apache2/mods-available/mpm_prefork.conf state=present regexp='MaxSpareServers' insertbefore='<\\/IfModule>' line='MaxSpareServers   15'"
+  - lineinfile: "dest=/etc/apache2/mods-available/mpm_prefork.conf state=present regexp='MaxRequestWorkers' insertbefore='<\\/IfModule>' line='MaxRequestWorkers   150'"
+  - lineinfile: dest=/etc/apache2/mods-available/mpm_prefork.conf state=present insertbefore='<\/IfModule>' line='MaxClients   150'
+  - lineinfile: dest=/etc/apache2/mods-available/mpm_prefork.conf state=present insertbefore='<\/IfModule>' line='MaxRequestsPerChild   500'
+
+  - lineinfile: "dest=/etc/apache2/eg_vhost.conf state=present regexp='OSRFTranslatorCacheServer' line='OSRFTranslatorCacheServer {{opensrf_memcached_server}}:{{opensrf_memcached_port}}'"
+  - lineinfile: "dest=/etc/apache2/eg_vhost.conf state=present regexp='RemoteIPInternalProxy 1' line='RemoteIPInternalProxy 127.0.0.1/24'"
+  - lineinfile: "dest=/etc/apache2/eg_vhost.conf state=present regexp='RemoteIPInternalProxy \\:' line='RemoteIPInternalProxy ::1'"
+  - lineinfile: "dest=/etc/apache2/eg_vhost.conf state=present regexp='RemoteIPHeader' line='RemoteIPHeader X-Forwarded-For'"
+
+  - name: copy custom eg.conf (if exists)
+    become: true
+    ignore_errors: yes
+    shell: cp /egconfigs/eg.conf /etc/apache2/sites-available/eg.conf
+
+  - name: copy custom eg_vhost.conf (if exists)
+    become: true
+    ignore_errors: yes
+    shell: cp /egconfigs/eg_vhost.conf /etc/apache2/eg_vhost.conf
+
+  - lineinfile:
+      dest: /etc/apache2/eg_vhost.conf
+      line: RewriteCond %{REQUEST_URI} ^/eg2/
+    when: add_evergreen_language_support|bool == true
+    ignore_errors: yes
+
+  - lineinfile:
+      dest: /etc/apache2/eg_vhost.conf
+      line: RewriteCond %{REQUEST_URI} !^/eg2/fr-CA/
+    when: add_evergreen_language_support|bool == true
+    ignore_errors: yes
+
+  - lineinfile:
+      dest: /etc/apache2/eg_vhost.conf
+      line: RewriteCond %{HTTP_COOKIE} eg_locale=fr_ca
+    when: add_evergreen_language_support|bool == true
+    ignore_errors: yes
+
+  - lineinfile:
+      dest: /etc/apache2/eg_vhost.conf
+      line: RewriteRule ^/eg2/(.*) https://%{HTTP_HOST}/eg2/fr-CA/$1 [R=307,L]
+    when: add_evergreen_language_support|bool == true
+    ignore_errors: yes
+
+  - lineinfile:
+      dest: /etc/apache2/eg_vhost.conf
+      insertafter: . sample staff-specific translation files
+      line: PerlAddVar OILSWebLocale "/openils/var/data/locale/staff/es-ES.po"
+    when: add_evergreen_language_support|bool == true
+    ignore_errors: yes
+
+  - lineinfile:
+      dest: /etc/apache2/eg_vhost.conf
+      insertafter: . sample staff-specific translation files
+      line: PerlAddVar OILSWebLocale "es_es"
+    when: add_evergreen_language_support|bool == true
+    ignore_errors: yes
+
+  - lineinfile:
+      dest: /etc/apache2/eg_vhost.conf
+      insertafter: . sample staff-specific translation files
+      line: PerlAddVar OILSWebLocale "/openils/var/data/locale/staff/ar-JO.po"
+    when: add_evergreen_language_support|bool == true
+    ignore_errors: yes
+
+  - lineinfile:
+      dest: /etc/apache2/eg_vhost.conf
+      insertafter: . sample staff-specific translation files
+      line: PerlAddVar OILSWebLocale "ar_jo"
+    when: add_evergreen_language_support|bool == true
+    ignore_errors: yes
+
+  - lineinfile:
+      dest: /etc/apache2/eg_vhost.conf
+      insertafter: . sample staff-specific translation files
+      line: PerlAddVar OILSWebLocale "/openils/var/data/locale/staff/cs-CZ.po"
+    when: add_evergreen_language_support|bool == true
+    ignore_errors: yes
+
+  - lineinfile:
+      dest: /etc/apache2/eg_vhost.conf
+      insertafter: . sample staff-specific translation files
+      line: PerlAddVar OILSWebLocale "cs_cz"
+    when: add_evergreen_language_support|bool == true
+    ignore_errors: yes
+
+  - lineinfile:
+      dest: /etc/apache2/eg_vhost.conf
+      insertafter: . sample staff-specific translation files
+      line: PerlAddVar OILSWebLocale "/openils/var/data/locale/staff/fr-CA.po"
+    when: add_evergreen_language_support|bool == true
+
+  - lineinfile:
+      dest: /etc/apache2/eg_vhost.conf
+      insertafter: . sample staff-specific translation files
+      line: PerlAddVar OILSWebLocale "fr_ca"
+    when: add_evergreen_language_support|bool == true
+    ignore_errors: yes
+
+  - name: Enable apache prefork module and evergreen default apache site
+    become: true
+    shell: /usr/sbin/a2dismod mpm_event && /usr/sbin/a2enmod mpm_prefork && /usr/sbin/a2ensite eg.conf && chown opensrf /var/lock/apache2
+
+  - name: Copy example opensrf_core.xml
+    become: true
+    become_user: opensrf
+    shell: cp {{openils_path}}/conf/opensrf_core.xml.example {{openils_path}}/conf/opensrf_core.xml
+
+  - name: Get redis opensrf uuid
+    shell: grep 'ACL SETUSER opensrf on >' {{openils_path}}/conf/redis-accounts.txt | cut -d'>' -f2
+    register: redis_opensrf_uuid
+
+  - name: Get redis gateway uuid
+    shell: grep 'ACL SETUSER gateway on >' {{openils_path}}/conf/redis-accounts.txt | cut -d'>' -f2
+    register: redis_gateway_uuid
+
+  - name: Get redis router uuid
+    shell: grep 'ACL SETUSER router on >' {{openils_path}}/conf/redis-accounts.txt | cut -d'>' -f2
+    register: redis_router_uuid
+
+  - name: Setup .srfsh.xml
+    become: true
+    become_user: opensrf
+    shell: cp {{openils_path}}/conf/srfsh.xml.example ~/.srfsh.xml
+
+  - name: setup password
+    become: true
+    ignore_errors: yes
+    lineinfile: "dest=/etc/postgresql/{{ postgres_version }}/main/pg_hba.conf state=present regexp='host    all     evergreen' line='host    all     evergreen       0.0.0.0/0     md5'"
+
+  - name: Copy opensrf example files to {{openils_path}}/conf
+    become: true
+    shell: cp -b {{openils_path}}/conf/opensrf_core.xml.example {{openils_path}}/conf/opensrf_core.xml && cp -b {{openils_path}}/conf/opensrf.xml.example {{openils_path}}/conf/opensrf.xml
+
+# Ejabberd is currently enabled by default in opensrf_core.xml.
+# Modify the file to use Redis configs instead.
+  - name: Redis Ports
+    replace:
+      path: "{{openils_path}}/conf/opensrf_core.xml"
+      regexp: '<port>5222</port>'
+      replace: '<port>6379</port>'
+  - name: Redis Passwords
+    replace:
+      path: "{{openils_path}}/conf/opensrf_core.xml"
+      regexp: '<passwd>password</passwd>'
+      replace: '<!--<passwd>password</passwd>-->'
+  - name: Redis Passwords
+    replace:
+      # e.g. 456fc340-beba-4489-9070-0d6b49e9952b
+      path: "{{openils_path}}/conf/opensrf_core.xml"
+      regexp: '<passwd>([\w\-]{36})</passwd>'
+      replace: '--><passwd>\1</passwd><!--'
+  - name: Redis Passwords
+    replace:
+      path: "{{openils_path}}/conf/opensrf_core.xml"
+      regexp: '<password>password</password>'
+      replace: '<!--<password>password</password>-->'
+  - name: Redis Passwords
+    replace:
+      path: "{{openils_path}}/conf/opensrf_core.xml"
+      regexp: '<password>([\w\-]{36})</password>'
+      replace: '--><password>\1</password><!--'
+  - name: Redis Gateway Username
+    replace:
+      path: "{{openils_path}}/conf/opensrf_core.xml"
+      regexp: '\s+ </services>\n\s*\n\s+<!-- Ejabberd -->\n\s*<username>opensrf</username>'
+      replace: '\n    </services>\n    <username>gateway</username>\n'
+
+## Starting to edit {{openils_path}}/conf/opensrf.xml if use_custom_opensrf_xml is false
+  - block:
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<sender_address>evergreen@localhost' line='<sender_address>{{sender_address}}</sender_address>'"
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<sender_address>evergreen@localhost' line='<sender_address>{{sender_address}}</sender_address>'"
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<base_uri>https://localhost/reporter/</base_uri>' line='<base_uri>{{base_reporter_uri}}</base_uri>'"
+## update ALL of the database hostnames
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<host>localhost</host>' line='<host>{{database_host}}</host>'"
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<host>localhost</host>' line='<host>{{database_host}}</host>'"
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<host>localhost</host>' line='<host>{{database_host}}</host>'"
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<host>localhost</host>' line='<host>{{database_host}}</host>'"
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<host>localhost</host>' line='<host>{{database_host}}</host>'"
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<host>localhost</host>' line='<host>{{database_host}}</host>'"
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<host>localhost</host>' line='<host>{{database_host}}</host>'"
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<host>localhost</host>' line='<host>{{database_host}}</host>'"
+## update ALL of the database ports
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<port>5432</port>' line='<port>{{database_port}}</port>'"
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<port>5432</port>' line='<port>{{database_port}}</port>'"
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<port>5432</port>' line='<port>{{database_port}}</port>'"
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<port>5432</port>' line='<port>{{database_port}}</port>'"
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<port>5432</port>' line='<port>{{database_port}}</port>'"
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<port>5432</port>' line='<port>{{database_port}}</port>'"
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<port>5432</port>' line='<port>{{database_port}}</port>'"
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<port>5432</port>' line='<port>{{database_port}}</port>'"
+## update ALL of the database database lines
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<db>evergreen</db>' line='<db>{{database_database}}</db>'"
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<db>evergreen</db>' line='<db>{{database_database}}</db>'"
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<db>evergreen</db>' line='<db>{{database_database}}</db>'"
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<db>evergreen</db>' line='<db>{{database_database}}</db>'"
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<db>evergreen</db>' line='<db>{{database_database}}</db>'"
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<db>evergreen</db>' line='<db>{{database_database}}</db>'"
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<db>evergreen</db>' line='<db>{{database_database}}</db>'"
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<db>evergreen</db>' line='<db>{{database_database}}</db>'"
+## update ALL of the database user lines
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<user>postgres</user>' line='<user>{{database_user}}</user>'"
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<user>postgres</user>' line='<user>{{database_user}}</user>'"
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<user>postgres</user>' line='<user>{{database_user}}</user>'"
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<user>postgres</user>' line='<user>{{database_user}}</user>'"
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<user>postgres</user>' line='<user>{{database_user}}</user>'"
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<user>postgres</user>' line='<user>{{database_user}}</user>'"
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<user>postgres</user>' line='<user>{{database_user}}</user>'"
+## update ALL of the database password lines
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<pw>postgres</pw>' line='<pw>{{database_password}}</pw>'"  
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<pw>postgres</pw>' line='<pw>{{database_password}}</pw>'"  
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<pw>postgres</pw>' line='<pw>{{database_password}}</pw>'"  
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<pw>postgres</pw>' line='<pw>{{database_password}}</pw>'"  
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<pw>postgres</pw>' line='<pw>{{database_password}}</pw>'"
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<pw>postgres</pw>' line='<pw>{{database_password}}</pw>'"
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<pw>postgres</pw>' line='<pw>{{database_password}}</pw>'"
+
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<output_base>{{openils_path}}/var/web/reporter</output_base>' line='<output_base>{{reporter_output_folder}}</output_base>'"
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<server>127.0.0.1:11211</server>' line='<server>{{opensrf_memcached_server}}:{{opensrf_memcached_port}}</server>'"
+    when: use_custom_opensrf_xml|bool == false
+    become: true
+    become_user: opensrf
+
+  - name: Copy custom opensrf {{openils_path}}/conf {{ use_custom_opensrf_xml }}
+    when: use_custom_opensrf_xml|bool == true
+    become: true
+    shell: cp /egconfigs/opensrf.xml {{openils_path}}/conf && chown opensrf:opensrf {{openils_path}}/conf/opensrf.xml
+
+  - name: Owning apache2 pid file
+    become: true
+    shell: chown opensrf /var/lock/apache2*
+    ignore_errors: yes
+
+  - name: Disable the default apache sites
+    become: true
+    ignore_errors: yes
+    shell: /usr/sbin/a2dissite default-ssl && /usr/sbin/a2dissite 000-default
+
+## SETUP NGINX
+  - name: Stop Apache
+    ignore_errors: yes
+    service:
+      name: apache2
+      state: stopped
+# service module is broken for ansible/jammy/docker
+  - name: Stop Apache manually
+    ignore_errors: yes
+    shell: /etc/init.d/apache2 stop
+    when: ubuntu_version|lower == 'jammy'
+
+  - name: Install nginx for the WebSockets proxy
+    become: true
+    apt:
+      name: nginx
+
+  - stat: path=/etc/nginx/sites-available
+    register: nginxsites
+
+  - name: Copy example nginx config
+    become: true
+    shell: cp /home/opensrf/repos/OpenSRF/examples/nginx/osrf-ws-http-proxy /etc/nginx/sites-available/
+    when: nginxsites.stat.isdir is defined
+
+  - name: Setup nginx sites
+    become: true
+    shell: ln -s /etc/nginx/sites-available/osrf-ws-http-proxy /etc/nginx/sites-enabled/osrf-ws-http-proxy && rm /etc/nginx/sites-enabled/default
+
+  - name: Generate dhpararm file for nginx WebSockets proxy
+    become: true
+    shell: openssl dhparam -out /etc/apache2/ssl/dhparam.pem 2048
+
+  - lineinfile: dest=/etc/apache2/sites-enabled/eg.conf regexp="^<VirtualHost \*:443>" line="<VirtualHost *:7443>"
+  - lineinfile: dest=/etc/apache2/sites-enabled/eg.conf regexp="^<VirtualHost \*:80>" line="<VirtualHost *:7080>"
+  - lineinfile: dest=/etc/apache2/ports.conf state=present regexp="^Listen 80" line="Listen 7080"
+  - lineinfile: dest=/etc/apache2/ports.conf state=present regexp="Listen 443" line="        Listen 7443"
+  - lineinfile: dest=/etc/apache2/ports.conf state=present regexp="Listen 443" line="        Listen 7443"
+
+  - name: Enable apache remoteip module
+    become: true
+    shell: /usr/sbin/a2enmod remoteip
+
+## Evergreen is installed
+
+## Installing SIP
+  - name: Install Socket::Linux
+    become: true
+    shell: export PERL_MM_USE_DEFAULT=1 && perl -MCPAN -e 'install Socket::Linux'
+  - name: chown /opt
+    become: true
+    file: path=/opt state=directory owner=opensrf group=opensrf mode=0775
+  - stat: path=/opt/SIPServer
+    register: sipgit
+  - name: Clone SIPServer repo
+    when: sipgit.stat.isdir is not defined
+    become: true
+    become_user: opensrf
+    shell: cd /opt && git clone git://git.evergreen-ils.org/SIPServer.git SIPServer
+  - name: Git SIPServer Add remote
+    become: true
+    become_user: opensrf
+    shell: cd /opt/SIPServer && git remote add working git://git.evergreen-ils.org/working/SIPServer.git 
+    ignore_errors: yes
+  - name: Git SIPServer Add remote
+    become: true
+    become_user: opensrf
+    shell: cd /opt/SIPServer && git remote set-url --push working git@git.evergreen-ils.org:working/SIPServer.git
+    ignore_errors: yes
+  - name: Git SIPServer fetch all
+    become: true
+    become_user: opensrf
+    shell: cd /opt/SIPServer && git checkout main && git fetch --all && git pull
+  - name: Git SIPServer Checkout the "Good" Branch
+    become: true
+    become_user: opensrf
+    shell: cd /opt/SIPServer && git reset --hard && git config --global user.email "just_need_to_satisfy_git@yoyo.com" && git config --global user.name "checkoutuser" 
+  - name: Git SIPServer Cherry pick loop
+    become: true
+    become_user: opensrf
+    shell: cd /opt/SIPServer && git cherry-pick {{ item }}
+    with_items: "{{ SIPServer_cherry_picks }}"
+  - name: copy the oils_sip.xml
+    become: true
+    shell: cp {{ openils_path }}/conf/oils_sip.xml.example {{ openils_path }}/conf/oils_sip.xml && chown opensrf:opensrf -R {{ openils_path }}
+  - lineinfile: dest={{ openils_path }}/conf/oils_sip.xml state=present regexp='<login id="scclient" password="clientpwd"' line='<login id="{{evergreen_global_admin}}" password="{{evergreen_global_admin_password}}" institution="sample"/>'
+  - lineinfile: dest={{ openils_path }}/conf/oils_sip.xml state=present regexp='<institution id="gapines" implementation="OpenILS::SIP">' line='<institution id="sample" implementation="OpenILS::SIP">'
+
+## Compile staff client on older versions of EG
+  - name: Install nsis
+    apt: name=nsis
+    when: install_xul_client|bool == true
+  - name: Install zip
+    apt: name=zip
+    when: install_xul_client|bool == true
+  - name: Remove xul/server links
+    become: true
+    shell: rm {{openils_path}}/var/web/xul/server
+    when: install_xul_client|bool == true
+  - name: Compile xul staff client
+    become: true
+    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/xul/staff_client && make clean && make AUTOUPDATE_HOST={{domain_name}} STAFF_CLIENT_STAMP_ID={{evergreen_stamp_id}} STAFF_CLIENT_BUILD_ID={{evergreen_stamp_id}} rigrelease install && make updates-client
+    when: install_xul_client|bool == true
+  - name: Setup Symlink {{openils_path}}/var/web/xul/server
+    become: true
+    shell: cd {{openils_path}}/var/web/xul && ln -sf {{evergreen_stamp_id}}/server server && chown -R opensrf:opensrf {{openils_path}}
+    when: install_xul_client|bool == true
+  - name: Make opensrf the owner
+    become: true
+    shell: chown -R opensrf:opensrf /home/opensrf/repos
+## Setup sendmail
+  - name: Restart sendmail
+    become: true
+    shell: /etc/init.d/sendmail restart
+### Setup eg_db_config making configs, no concerto data
+  - name: Setup EG concerto database
+    become: true
+    shell: cd /home/opensrf/repos/Evergreen && perl Open-ILS/src/support-scripts/eg_db_config --update-config --service all --create-database --create-schema --create-offline --user {{ database_user }} --password {{ database_password }} --hostname {{ database_host }} --port {{ database_port }} --database {{ database_database }} --admin-user {{ evergreen_global_admin }} --admin-pass {{ evergreen_global_admin_password }}
+### Wipe out the Evergreen source, to make way for the container mounted Evergreen source
+  - name: Delete /home/opensrf/repos/Evergreen
+    become: true
+    file: path=/home/opensrf/repos/Evergreen state=absent
+  - name: Create empty folder /home/opensrf/repos/Evergreen
+    become: true
+    become_user: opensrf
+    file: path=/home/opensrf/repos/Evergreen state=directory
+  - name: Correct pg_config link
+    become: true
+    shell:  rm /usr/bin/pg_config && ln -s /usr/lib/postgresql/10/bin/pg_config /usr/bin/pg_config
+    ignore_errors: yes
+  - name: Download and make pgtap
+    become: true
+    become_user: postgres
+    shell:  cd ~/ && wget https://api.pgxn.org/dist/pgtap/1.1.0/pgtap-1.1.0.zip && unzip pgtap-1.1.0.zip && cd pgtap-1.1.0 && make
+    ignore_errors: yes
+    when: install_pg_tap|bool == true
+  - name: Install pgtap and pg_prove
+    become: true
+    shell: cd ~postgres/pgtap-1.1.0 && make install && cpan TAP::Parser::SourceHandler::pgTAP
+    ignore_errors: yes
+    when: install_pg_tap|bool == true
+  - name: Add pgtap extension
+    become: true
+    become_user: postgres
+    shell:  psql evergreen -c "CREATE EXTENSION pgtap;"
+    ignore_errors: yes
+    when: install_pg_tap|bool == true
+...
