@@ -160,6 +160,17 @@
     shell: /etc/init.d/nginx start
     when: ubuntu_version|lower == 'jammy'
 
+  - name: starting cron
+    ignore_errors: yes
+    service:
+      name: cron
+      state: started
+# service module is broken for ansible/jammy/docker
+  - name: Starting cron manually
+    ignore_errors: yes
+    shell: /etc/init.d/cron restart
+    when: ubuntu_version|lower == 'jammy'
+
   - name: Setup ping.txt
     remote_user: opensrf
     shell: echo pong > {{openils_path}}/var/web/ping.txt && chown opensrf:opensrf {{openils_path}}/var/web/ping.txt

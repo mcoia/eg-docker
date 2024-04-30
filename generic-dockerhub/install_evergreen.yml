@@ -843,4 +843,27 @@
     shell:  psql evergreen -c "CREATE EXTENSION pgtap;"
     ignore_errors: yes
     when: install_pg_tap|bool == true
+### attempt to setup firefox non-snap, to facilitate nightwatch
+  - name: Setup firefox keyrings
+    ignore_errors: yes
+    become: true
+    shell: install -d -m 0755 /etc/apt/keyrings
+  - name: Setup mozilla.org repo
+    ignore_errors: yes
+    become: true
+    shell: wget -q https://packages.mozilla.org/apt/repo-signing-key.gpg -O- | sudo tee /etc/apt/keyrings/packages.mozilla.org.asc
+  - name: Setup mozilla deb in sources.list
+    ignore_errors: yes
+    become: true
+    shell: echo "deb [signed-by=/etc/apt/keyrings/packages.mozilla.org.asc] https://packages.mozilla.org/apt mozilla main" | sudo tee -a /etc/apt/sources.list.d/mozilla.list
+  - name: Make firefox mozilla deb repo the preferred
+    ignore_errors: yes
+    become: true
+    shell: >
+      echo '
+      Package: *
+      Pin: origin packages.mozilla.org
+      Pin-Priority: 1000
+      ' | sudo tee /etc/apt/preferences.d/mozilla
+
 ...

@@ -299,7 +299,7 @@
     when: install_xul_client|bool == false
 
 ### Setup EG concerto database
-  - name: Setup EG concerto database
+  - name: Setup EG Enhanced concerto database
     become: true
     shell: cd /home/opensrf/repos/Evergreen-build && perl Open-ILS/src/support-scripts/eg_db_config --update-config --service all --create-database --create-schema --create-offline --user {{ database_user }} --password {{ database_password }} --hostname {{ database_host }} --port {{ database_port }} --database {{ database_database }} --admin-user {{ evergreen_global_admin }} --admin-pass {{ evergreen_global_admin_password }} --load-concerto-enhanced
 
