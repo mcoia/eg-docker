@@ -1,6 +1,6 @@
 ---
 
-- hosts: '{{hosts}}'
+- hosts: localhost
   connection: local
   remote_user: ma
   become_method: sudo

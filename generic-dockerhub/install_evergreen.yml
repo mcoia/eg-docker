@@ -1,7 +1,7 @@
 ---
 #ansible-playbook /mnt/evergreen/playbooks/restart_app_services.yml --private-key /home/user/.ssh/id_rsa -vvvv -e "hosts=192.168.12.49"
 
-- hosts: '{{hosts}}'
+- hosts: localhost
   connection: local
   remote_user: user
   become_method: sudo
