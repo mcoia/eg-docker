@@ -824,10 +824,17 @@
     ignore_errors: yes
     become: true
     shell: >
-      echo '
-      Package: *
-      Pin: origin packages.mozilla.org
-      Pin-Priority: 1000
+      echo '\n
+      Package: *\n
+      Pin: origin packages.mozilla.org\n
+      Pin-Priority: 1000\n
       ' | sudo tee /etc/apt/preferences.d/mozilla
+  - name: removing prefixed spaces /etc/apt/preferences.d/mozilla
+    ignore_errors: yes
+    become: true
+    replace: 
+      path: /etc/apt/preferences.d/mozilla
+      regexp: '^\s*(.*)$'
+      replace: \1
 
 ...
