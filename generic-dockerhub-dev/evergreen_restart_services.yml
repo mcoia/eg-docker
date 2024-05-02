@@ -299,9 +299,9 @@
     when: install_xul_client|bool == false
 
 ### Setup EG concerto database
-  - name: Setup EG Enhanced concerto database
+  - name: Setup concerto database
     become: true
-    shell: cd /home/opensrf/repos/Evergreen-build && perl Open-ILS/src/support-scripts/eg_db_config --update-config --service all --create-database --create-schema --create-offline --user {{ database_user }} --password {{ database_password }} --hostname {{ database_host }} --port {{ database_port }} --database {{ database_database }} --admin-user {{ evergreen_global_admin }} --admin-pass {{ evergreen_global_admin_password }} --load-concerto-enhanced
+    shell: cd /home/opensrf/repos/Evergreen-build && perl Open-ILS/src/support-scripts/eg_db_config --update-config --service all --create-database --create-schema --create-offline --user {{ database_user }} --password {{ database_password }} --hostname {{ database_host }} --port {{ database_port }} --database {{ database_database }} --admin-user {{ evergreen_global_admin }} --admin-pass {{ evergreen_global_admin_password }} --load-all-sample
 
   - name: Check jacket's ac folder for existing symlink
     become: true
@@ -473,7 +473,7 @@
     lineinfile: 'dest=/egconfigs/start_websocketd state=present regexp="#!/bin/bas" line="#!/bin/bash"'
   - name: Building /egconfigs/start_websocketd
     become: true
-    lineinfile: 'dest=/egconfigs/start_websocketd state=present regexp="websocketd" line="/usr/local/bin/websocketd --loglevel error --port 7682 /openils/bin/osrf-websocket-stdio >& /dev/null &"'
+    lineinfile: 'dest=/egconfigs/start_websocketd state=present regexp="websocketd" line="/usr/local/bin/websocketd --loglevel error --port 7682 {{openils_path}}/bin/osrf-websocket-stdio >& /dev/null &"'
   - name: Starting websocketd
     become: true
     become_user: opensrf
@@ -567,27 +567,50 @@
       dest: /home/opensrf/repos/Evergreen/docker-watch.sh
       content: |
           #!/bin/bash
-          x=1
-          while [ $x -le 28 ]
-          do
-          CHECKFILE=/home/opensrf/repos/Evergreen/eg_rebuild_angular
-          if test -f "$CHECKFILE"; then
-              rm $CHECKFILE
-              x=$(( $x + 100 ))
-              rsync -L -a --delete --no-owner --no-perms --size-only --exclude "node_modules" /home/opensrf/repos/Evergreen/Open-ILS/src/eg2/ /home/opensrf/repos/Evergreen-build/Open-ILS/src/eg2
-              cd /home/opensrf/repos/Evergreen-build/Open-ILS/src/eg2
-              PATH=/usr/local/bin:$PATH
-              NODE_OPTIONS=--max-old-space-size=3072 ng build --configuration=production &> "$CHECKFILE"_screenoutput
-          fi
-          CHECKFILE=/home/opensrf/repos/Evergreen/eg_restart_go
-          if test -f "$CHECKFILE"; then
-              rm $CHECKFILE
-              ansible-playbook /egconfigs/restart_post_boot.yml -v -e "hosts=127.0.0.1" &> "$CHECKFILE"_screenoutput
-          fi
-          sleep 2
-          x=$(( $x + 1 ))
-          done
+          LOCKFILE=/home/opensrf/repos/Evergreen/watch.LOCK
+          if [ ! -f "$LOCKFILE" ]; then
+              touch $LOCKFILE
+              x=1
+              while [ $x -le 28 ]
+              do
 
+                  CHECKFILE=/home/opensrf/repos/Evergreen/eg_rebuild_angular
+                  if test -f "$CHECKFILE"; then
+                      rm $CHECKFILE
+                      x=$(( $x + 100 ))
+                      rsync -L -a --delete --no-owner --no-perms --size-only --exclude "node_modules" /home/opensrf/repos/Evergreen/Open-ILS/src/eg2/ /home/opensrf/repos/Evergreen-build/Open-ILS/src/eg2
+                      cd /home/opensrf/repos/Evergreen-build/Open-ILS/src/eg2
+                      PATH=/usr/local/bin:$PATH
+                      NODE_OPTIONS=--max-old-space-size=3072 ng build --configuration=production &> "$CHECKFILE"_screenoutput
+                  fi
+
+                  CHECKFILE=/home/opensrf/repos/Evergreen/eg_restart_go
+                  if test -f "$CHECKFILE"; then
+                      rm $CHECKFILE
+                      ansible-playbook /egconfigs/restart_post_boot.yml -v -e "hosts=127.0.0.1" &> "$CHECKFILE"_screenoutput
+                  fi
+
+                  CHECKFILE=/home/opensrf/repos/Evergreen/db_switch_LOCK
+                  if [ ! -f "$CHECKFILE" ]; then
+                      /egconfigs/db_switcher.pl >>/home/opensrf/repos/Evergreen/db_switch.log 2>&1
+                      rm $CHECKFILE
+                  fi
+                  sleep 2
+                  x=$(( $x + 1 ))
+              done
+
+              rm $LOCKFILE
+          fi
+
+  - name: Create Evergreen database control file
+    copy:
+      owner: opensrf
+      group: opensrf
+      mode: a+x
+      dest: /home/opensrf/repos/Evergreen/db_control.txt
+      content: |
+          evergreen standard *
+          evergreen_enhanced enhanced 
   - name: Setup docker watch cron
     cron: user="root" name="Docker Watch" job=". /etc/profile && cd /home/opensrf/repos/Evergreen && ./docker-watch.sh"
 

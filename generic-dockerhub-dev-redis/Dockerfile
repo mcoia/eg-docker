@@ -16,7 +16,7 @@ ENV DEBIAN_FRONTEND noninteractive
 ENV TZ=America/New_York
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 RUN apt-get update && apt-get install -y --no-install-recommends apt-utils
-RUN apt-get -y install vim syslog-ng-core sendmail mailutils sendmail-bin logrotate ssh net-tools iputils-ping sudo nano make autoconf libtool git mlocate ansible git-core ntp cron screen rsync curl vim
+RUN apt-get -y install syslog-ng-core sendmail mailutils sendmail-bin logrotate ssh net-tools iputils-ping sudo nano make autoconf libtool git mlocate ansible git-core ntp cron screen rsync curl vim
 RUN if [ $os != "xenial"] ; then dpkg-reconfigure --frontend noninteractive tzdata ; fi
 
 RUN mkdir /egconfigs
@@ -40,6 +40,8 @@ RUN	sed -i 's/^#\(SYSLOGNG_OPTS="--no-caps"\)/\1/g' /etc/default/syslog-ng
 ADD hosts /egconfigs/hosts
 
 ADD logrotate_evergreen.txt /egconfigs/logrotate_evergreen.txt
+ADD db_switcher.pl /egconfigs/db_switcher.pl
+RUN chmod a+x /egconfigs/db_switcher.pl
 
 ADD vars.yml /egconfigs/vars.yml
 ADD install_evergreen.yml /egconfigs/install_evergreen.yml

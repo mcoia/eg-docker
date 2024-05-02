@@ -98,9 +98,30 @@
     ignore_errors: yes
     shell: rsync -a --exclude ".git" --exclude "node_modules" --no-owner --no-perms --size-only --chown 0:0 /home/opensrf/repos/Evergreen/Open-ILS/src/perlmods/lib/OpenILS/ /home/opensrf/repos/Evergreen-build/Open-ILS/src/perlmods/lib/OpenILS
 
+  - name: Put the fm_IDL.xml in conf folder
+    become: true
+    ignore_errors: yes
+    copy: 
+      owner: opensrf
+      group: opensrf
+      mode: 0644
+      src: /home/opensrf/repos/Evergreen/Open-ILS/examples/fm_IDL.xml
+      dest: /openils/conf/fm_IDL.xml
+
+  - name: Put the fm_IDL.xml in reports folder
+    become: true
+    ignore_errors: yes
+    copy: 
+      owner: opensrf
+      group: opensrf
+      mode: 0644
+      src: /home/opensrf/repos/Evergreen/Open-ILS/examples/fm_IDL.xml
+      dest: /openils/var/web/reports/fm_IDL.xml
+
   - name: Configuring Evergreen code and make (for perl changes)
     become: true
     shell: cd /home/opensrf/repos/Evergreen-build && PATH={{openils_path}}/bin:$PATH ./configure --prefix={{openils_path}} --sysconfdir={{openils_path}}/conf && make
+
   - name: Start OpenSRF
     become: true
     become_user: opensrf

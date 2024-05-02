@@ -5,16 +5,16 @@
 # NOTE: xenial is not supported due to the nodejs stack issues, but left here for reference in case you want to hack it
 # Evergreen didn't support ubuntu bionic until version 3.3
   ubuntu_version: jammy
-  evergreen_version: 3.12.0
+  evergreen_version: 3.12.3
 # This is tempermental. If you turn this setting on, you might end up having to manually edit the resulting installation
 # Particularly eg_vhost.conf
   add_evergreen_language_support: no
 # You can manually assign the Evergreen git branch, or let this regular expression figure it out based on evergreen_git_branch
-  evergreen_git_branch: tags/rel_3_12_0
+  evergreen_git_branch: tags/rel_3_12_3
 
   evergreen_major_version: 3
-  evergreen_minor_version: 10
-  evergreen_bug_version: 0
+  evergreen_minor_version: 12
+  evergreen_bug_version: 3
   install_xul_client: no
   evergreen_stamp_id: main_stamp
   postgres_version: "{% if ubuntu_version|lower == 'jammy' or ubuntu_version|lower == 'focal' %}10{% elif ubuntu_version|lower == 'bionic' %}9.6{% else %}9.5{% endif %}"

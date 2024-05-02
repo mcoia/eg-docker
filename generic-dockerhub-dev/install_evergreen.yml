@@ -774,10 +774,10 @@
   - name: Restart sendmail
     become: true
     shell: /etc/init.d/sendmail restart
-### Setup EG concerto database
+### Setup eg_db_config making configs, no concerto data
   - name: Setup EG concerto database
     become: true
-    shell: cd /home/opensrf/repos/Evergreen && perl Open-ILS/src/support-scripts/eg_db_config --update-config --service all --create-database --create-schema --create-offline --user {{ database_user }} --password {{ database_password }} --hostname {{ database_host }} --port {{ database_port }} --database {{ database_database }} --admin-user {{ evergreen_global_admin }} --admin-pass {{ evergreen_global_admin_password }} --load-all-sample
+    shell: cd /home/opensrf/repos/Evergreen && perl Open-ILS/src/support-scripts/eg_db_config --update-config --service all --create-database --create-schema --create-offline --user {{ database_user }} --password {{ database_password }} --hostname {{ database_host }} --port {{ database_port }} --database {{ database_database }} --admin-user {{ evergreen_global_admin }} --admin-pass {{ evergreen_global_admin_password }}
 ### Wipe out the Evergreen source, to make way for the container mounted Evergreen source
   - name: Delete /home/opensrf/repos/Evergreen
     become: true

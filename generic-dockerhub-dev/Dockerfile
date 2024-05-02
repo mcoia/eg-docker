@@ -44,6 +44,8 @@ ADD ejabberd_bionic.yml /egconfigs/ejabberd_bionic.yml
 ADD ejabberd_xenial.yml /egconfigs/ejabberd_xenial.yml
 
 ADD logrotate_evergreen.txt /egconfigs/logrotate_evergreen.txt
+ADD db_switcher.pl /egconfigs/db_switcher.pl
+RUN chmod a+x /egconfigs/db_switcher.pl
 
 ADD vars.yml /egconfigs/vars.yml
 ADD install_evergreen.yml /egconfigs/install_evergreen.yml
