@@ -307,6 +307,7 @@
     become: true
     ignore_errors: yes
     lineinfile: "dest=/etc/postgresql/{{ postgres_version }}/main/postgresql.conf state=present regexp='jit_above_cost' line='jit_above_cost = -1'"
+    when: postgres_version|int > 10
 
   - name: Setup postgresql.conf (if you have a custom file in /egconfigs)
     become: true
