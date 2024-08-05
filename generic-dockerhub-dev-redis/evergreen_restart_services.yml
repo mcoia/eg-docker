@@ -247,7 +247,8 @@
 
   - name: Setting up eg2 for EG version 3.2 and above (on local build copy)
     become: true
-    shell: cd /home/opensrf/repos/Evergreen-build/Open-ILS/src/eg2/ && npm install
+    ignore_errors: yes
+    shell: cd /home/opensrf/repos/Evergreen-build/Open-ILS/src/eg2/ && rm -Rf node_modules; npm install
     when: evergreen_major_version|int > 2 and evergreen_minor_version|int > 1
 
   - name: Setting up bootstrap opac for EG 3.6 and above
@@ -440,7 +441,7 @@
     lineinfile: 'dest=/egconfigs/start_websocketd state=present regexp="#!/bin/bas" line="#!/bin/bash"'
   - name: Building /egconfigs/start_websocketd
     become: true
-    lineinfile: 'dest=/egconfigs/start_websocketd state=present regexp="websocketd" line="/usr/local/bin/websocketd --loglevel error --port 7682 /openils/bin/osrf-websocket-stdio >& /dev/null &"'
+    lineinfile: 'dest=/egconfigs/start_websocketd state=present regexp="websocketd" line="/usr/local/bin/websocketd --loglevel error --port 7682 {{openils_path}}/bin/osrf-websocket-stdio >& /dev/null &"'
   - name: Starting websocketd
     become: true
     become_user: opensrf
@@ -525,6 +526,13 @@
     cron: user="opensrf" name="A/T monthly" minute="20" hour="3" day="1" job=". /etc/profile && cd {{openils_path}}/bin/action_trigger_runner.pl --osrf-config {{openils_path}}/conf/opensrf_core.xml --process-hooks --granularity monthly"
   - name: A/T yearly
     cron: user="opensrf" name="A/T yearly" minute="25" hour="3" day="1" month="1" job=". /etc/profile && cd {{openils_path}}/bin/action_trigger_runner.pl --osrf-config {{openils_path}}/conf/opensrf_core.xml --process-hooks --granularity yearly"
+
+  - name: Delete watch.LOCK
+    become: true
+    ignore_errors: yes
+    file:
+      path: "/home/opensrf/repos/Evergreen/watch.LOCK"
+      state: absent
 
   - name: Create Evergreen Angular watcher/rebuilder
     copy:
