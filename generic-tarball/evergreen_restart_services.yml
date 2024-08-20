@@ -1,0 +1,417 @@
+---
+
+- hosts: localhost
+  connection: local
+  remote_user: user
+  become_method: sudo
+  vars_files:
+    - vars.yml
+  tasks:
+  - name: Setup host file
+    become: true
+    shell: cp /egconfigs/hosts /etc/hosts
+    ignore_errors: yes
+  - user: name=user groups=sudo
+  - name: Ensure ejabberd private/public networks are accounted for in hosts file
+    become: true
+    shell: echo 127.0.1.2       public.localhost        public >> /etc/hosts
+  - name: Ensure ejabberd private/public networks are accounted for in hosts file
+    become: true
+    shell: echo 127.0.1.3       private.localhost       private >> /etc/hosts
+  - name: Add local IP to hosts
+    ignore_errors: yes
+    become: true
+    shell: echo {{ansible_all_ipv4_addresses.0}} {{ansible_fqdn}}.{{domain_name}} {{ansible_hostname}} >> /etc/hosts
+  - name: starting ssh
+    ignore_errors: yes
+    service:
+      name: ssh
+      state: started
+# service module is broken for ansible/jammy/docker
+  - name: Starting ssh manually
+    ignore_errors: yes
+    shell: /etc/init.d/ssh restart
+    when: ubuntu_version|lower == 'jammy'
+
+  - name: stopping syslog-ng
+    ignore_errors: yes
+    service:
+      name: syslog-ng
+      state: stopped
+  - name: starting syslog-ng
+    ignore_errors: yes
+    service:
+      name: syslog-ng
+      state: started
+# service module is broken for ansible/jammy/docker
+  - name: Starting syslog-ng manually
+    ignore_errors: yes
+    shell: /etc/init.d/syslog-ng restart
+    when: ubuntu_version|lower == 'jammy'
+
+  - name: starting memcached
+    ignore_errors: yes
+    service:
+      name: memcached
+      state: started
+# service module is broken for ansible/jammy/docker
+  - name: Starting memcache manually
+    ignore_errors: yes
+    shell: /etc/init.d/memcached restart
+    when: ubuntu_version|lower == 'jammy'
+
+  - name: starting postgres
+    ignore_errors: yes
+    service:
+      name: postgresql
+      state: started
+# service module is broken for ansible/jammy/docker
+  - name: Starting postgresql manually
+    ignore_errors: yes
+    shell: /etc/init.d/postgresql restart
+    when: ubuntu_version|lower == 'jammy'
+
+  - name: Set Timezone Environment Var
+    become: true
+    lineinfile: "dest=/root/.bashrc state=present line='export TZ=America/Chicago'"
+  - name: Set Timezone Environment Var opensrf
+    become: true
+    lineinfile: "dest=/home/opensrf/.bashrc state=present line='export TZ=America/Chicago'"
+  - name: Set Timezone Environment Var for cron
+    become: true
+    lineinfile: "dest=/etc/crontab state=present line='TZ=America/Chicago' insertafter='PATH'"
+  - name: Remove Timezone file
+    become: true
+    file: path=/etc/localtime state=absent
+  - name: Setup System Timezone
+    become: true
+    ignore_errors: yes
+    shell: ln -s /usr/share/zoneinfo/US/Central /etc/localtime
+  - stat: path=/egconfigs/logrotate_evergreen.txt
+    register: logrotate_template
+  - name: Setup Logrotate for opensrf logs
+    when: logrotate_template.stat.isdir is defined
+    ignore_errors: yes
+    become: true
+    shell: cp /egconfigs/logrotate_evergreen.txt /etc/logrotate.d/evergreen
+  - name: Editing evergreen logrotate for opensrf logs
+    when: logrotate_template.stat.isdir is defined
+    ignore_errors: yes
+    become: true
+    lineinfile: "dest=/etc/logrotate.d/evergreen state=present regexp='replacemewith_path_and_curly_brace' line='{{openils_path}}/var/log/*.log {'"
+  - name: Changing evergreen logrotate file permissions
+    when: logrotate_template.stat.isdir is defined
+    ignore_errors: yes
+    become: true
+    file: "path=/etc/logrotate.d/evergreen state=file mode=0644"
+  - name: Fix Logrotate configuration
+    become: true
+    lineinfile: "dest=/etc/logrotate.conf state=present regexp='^su root' line='su root adm'"
+  - user: name=user groups=sudo
+  - lineinfile: "dest=/etc/sudoers state=present regexp='^%sudo' line='%sudo ALL=(ALL) NOPASSWD: ALL'"
+  - file: path=/root/ejabberd.yml state=absent
+## ejabberd remove and reinstall to get fresh database for current brick name
+  - name: Stopping ejabberd
+    ignore_errors: yes
+    service:
+      name: ejabberd
+      state: stopped
+
+  - name: Kill ejabberd
+    ignore_errors: yes
+    shell: "/bin/ps -ef | /bin/grep ejabber | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9"
+  - name: Delete ejabberd
+    become: true    
+    shell: updatedb && cp /etc/ejabberd/ejabberd.yml ~/ && apt-get -y --purge remove ejabberd && locate ejabberd|xargs rm -Rf
+  - name: Install ejabberd fresh
+    become: true    
+    shell: apt-get -y install ejabberd && cp /root/ejabberd.yml /etc/ejabberd/ejabberd.yml && cp /root/ejabberd.yml /egconfigs
+  - name: Kill ejabberd
+    ignore_errors: yes
+    shell: "/bin/ps -ef | /bin/grep ejabber | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9"
+  - name: Starting ejabberd
+    ignore_errors: yes
+    service:
+      name: ejabberd
+      state: started
+# service module is broken for ansible/jammy/docker
+  - name: Starting ejabberd manually
+    ignore_errors: yes
+    shell: /etc/init.d/ejabberd start
+    when: ubuntu_version|lower == 'jammy'
+
+  - name: Pausing for ejabberd
+    pause: seconds=5
+  - name: Setup ejabberd users
+    become: true
+    become_user: ejabberd
+    shell: ejabberdctl unregister router private.localhost && ejabberdctl unregister opensrf private.localhost && ejabberdctl unregister router public.localhost && ejabberdctl unregister opensrf public.localhost 
+  - name: Setup ejabberd users
+    become: true
+    become_user: ejabberd
+    shell: ejabberdctl register router private.localhost {{ejabberd_password}} && ejabberdctl register opensrf private.localhost {{ejabberd_password}} && ejabberdctl register router public.localhost {{ejabberd_password}} && ejabberdctl register opensrf public.localhost {{ejabberd_password}}
+## Evergreen services restart
+  - name: Disable the default apache sites
+    become: true
+    ignore_errors: yes
+    shell: /usr/sbin/a2dissite default-ssl && /usr/sbin/a2dissite 000-default
+  - name: Stop Web services
+    ignore_errors: yes
+    become: true
+    service:
+      name: apache2
+      state: stopped
+# service module is broken for ansible/jammy/docker
+  - name: Starting apache2 manually
+    ignore_errors: yes
+    shell: /etc/init.d/apache2 stop
+    when: ubuntu_version|lower == 'jammy'
+
+  - name: Stop Websocketd
+    become: true
+    ignore_errors: yes
+    shell: "/bin/ps -ef | /bin/grep osrf-websocket-stdio | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9"
+  - name: Stop nginx Websockets proxy
+    ignore_errors: yes
+    become: true
+    service:
+      name: nginx
+      state: stopped
+# service module is broken for ansible/jammy/docker
+  - name: Starting nginx manually
+    ignore_errors: yes
+    shell: /etc/init.d/nginx stop
+    when: ubuntu_version|lower == 'jammy'
+  - name: Stop OpenSRF
+    become: true
+    become_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/osrf_control --localhost --stop-all
+  - name: Stop SIP
+    become: true
+    become_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/oils_ctl.sh -a stop_sip
+  - name: Kill OpenSRF
+    ignore_errors: yes
+    shell: "/bin/ps -ef | /bin/grep OpenSRF | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9"
+  - name: Stopping ejabberd
+    ignore_errors: yes
+    service:
+      name: ejabberd
+      state: stopped
+  - name: Kill ejabberd
+    ignore_errors: yes
+    shell: "/bin/ps -ef | /bin/grep ejabber | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9"
+  - name: Kill Clark
+    ignore_errors: yes
+    shell: /bin/ps -ef | /bin/grep Clark | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9
+  - name: Kill webrick
+    ignore_errors: yes
+    shell: /bin/ps -ef | /bin/grep edi_webrick.rb | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9
+  - name: Kill SIP
+    ignore_errors: yes
+    shell: /bin/ps -ef | /bin/grep -i sip | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9
+  - name: Starting ejabberd
+    ignore_errors: yes
+    service:
+      name: ejabberd
+      state: started
+# service module is broken for ansible/jammy/docker
+  - name: Starting ejabberd manually
+    ignore_errors: yes
+    shell: /etc/init.d/ejabberd start
+    when: ubuntu_version|lower == 'jammy'
+
+  - name: Pausing for ejabberd
+    pause: seconds=10
+  - name: Setup external domain name in hosts
+    become: true
+    ignore_errors: yes
+    shell: echo {{ansible_all_ipv4_addresses.0}} {{domain_name}} >> /etc/hosts
+  - name: Sync up the {{openils_path}} directories
+    become: true
+    shell: "{{ sync_openils_sub_folders_cmd }}"
+    ignore_errors: yes
+  - name: Start OpenSRF
+    become: true
+    become_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/osrf_control --localhost --start-all
+  - name: Pausing for OpenSRF to spawn Drones
+    pause: seconds=5
+  - name: Run autogen
+    become: true
+    become_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell:  export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/autogen.sh -u
+  - name: Setup Lets encrypt folder link
+    become: true
+    become_user: opensrf
+    ignore_errors: yes
+    file:
+      force: yes
+      state: link
+      src: "{{lets_encrypt_shared_web_folder}}"
+      dest: "{{openils_path}}/var/web/.well-known"
+  - name: Setup shared reports folder link
+    become: true
+    become_user: opensrf
+    ignore_errors: yes
+    file:
+      force: yes
+      state: link
+      src: "{{shared_reports_folder}}"
+      dest: "{{openils_path}}/var/web/reporter"
+  - name: Setup circ_notices link
+    become: true
+    become_user: opensrf
+    ignore_errors: yes
+    file:
+      force: yes
+      state: link
+      src: "{{shared_circ_notices_folder}}"
+      dest: "{{openils_path}}/var/web/notices"
+
+  - name: Clear out the jackets folder when it's not a symlink
+    become: true
+    shell: rm -Rf {{openils_path}}/var/web/opac/extras/ac
+    when: shared_jackets_folder is defined and (jacketsym.stat.islnk is not defined or jacketsym.stat.islnk == false)
+
+  - name: Create Jackets Symlink
+    become: true
+    become_user: opensrf
+    ignore_errors: yes
+    file:
+      force: yes
+      state: link
+      src: "{{shared_jackets_folder}}"
+      dest: "{{openils_path}}/var/web/opac/extras/ac"
+    when: shared_jackets_folder is defined
+
+  - name: Copy fm_IDL
+    become: true
+    become_user: opensrf
+    shell: cp {{ openils_path }}/conf/fm_IDL.xml {{ openils_path }}/var/web/reports/fm_IDL.xml
+  - name: Start Web services
+    ignore_errors: yes
+    become: true
+    service:
+      name: apache2
+      state: started
+# service module is broken for ansible/jammy/docker
+  - name: Starting apache2 manually
+    ignore_errors: yes
+    shell: /etc/init.d/apache2 start
+    when: ubuntu_version|lower == 'jammy'
+
+  - name: create websocketd start script
+    file:
+      path: /egconfigs/start_websocketd
+      state: touch
+      owner: root
+      group: root
+      mode: '0755'
+  - name: Building /egconfigs/start_websocketd
+    become: true
+    lineinfile: 'dest=/egconfigs/start_websocketd state=present regexp="#!/bin/bas" line="#!/bin/bash"'
+  - name: Building /egconfigs/start_websocketd
+    become: true
+    lineinfile: 'dest=/egconfigs/start_websocketd state=present regexp="websocketd" line="/usr/local/bin/websocketd --loglevel error --port 7682 /openils/bin/osrf-websocket-stdio >& /dev/null &"'
+  - name: Starting websocketd
+    become: true
+    become_user: opensrf
+    shell: '/egconfigs/start_websocketd'
+  - name: Concat the Certificates for nginx
+    become: true
+    shell: cat /etc/apache2/ssl/server.crt > /etc/apache2/ssl/nginx.crt
+  - name: Fix nginx certificate config
+    become: true
+    lineinfile: 'dest=/etc/nginx/sites-available/osrf-ws-http-proxy state=present regexp="ssl_certificate \/" line="ssl_certificate /etc/apache2/ssl/nginx.crt;"'
+  - name: Fix nginx certificate config
+    become: true
+    lineinfile: 'dest=/etc/nginx/sites-available/osrf-ws-http-proxy state=present regexp="ssl_certificate_key\s" line="ssl_certificate_key /etc/apache2/ssl/server.key;"'
+  - name: Start nginx Websockets proxy
+    ignore_errors: yes
+    become: true
+    service:
+      name: nginx
+      state: started
+# service module is broken for ansible/jammy/docker
+  - name: Starting nginx manually
+    ignore_errors: yes
+    shell: /etc/init.d/nginx start
+    when: ubuntu_version|lower == 'jammy'
+
+  - name: copy the oils_sip.xml
+    become: true
+    shell: cp {{ openils_path }}/conf/oils_sip.xml.example {{ openils_path }}/conf/oils_sip.xml && chown opensrf:opensrf -R {{ openils_path }}
+  - lineinfile: dest={{ openils_path }}/conf/oils_sip.xml state=present regexp='<login id="scclient" password="clientpwd"' line='<login id="{{evergreen_global_admin}}" password="{{evergreen_global_admin_password}}" institution="sample"/>'
+  - lineinfile: dest={{ openils_path }}/conf/oils_sip.xml state=present regexp='<institution id="gapines" implementation="OpenILS::SIP">' line='<institution id="sample" implementation="OpenILS::SIP">'
+  - name: Start SIP
+    become: true
+    become_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: "{{openils_path}}/bin/oils_ctl.sh -a start_sip"
+  - name: Putting ping.txt back in rotation
+    become: true
+    ignore_errors: yes
+    shell: mv /root/ping.txt {{openils_path}}/var/web/ping.txt
+#### UTILITY services only
+  - name: Remove Reporter Lock File
+    become: true
+    file: path=/tmp/reporter-LOCK state=absent
+  - name: Start Clark Kent
+    remote_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: "{{openils_path}}/bin/clark-kent.pl -d -c 4"
+
+## Setup Sitemap generator
+  - name: Ensure the cron restart is present
+    cron: user="opensrf" name="Site Map Generator" minute="4" hour="4" job=". /etc/profile && cd {{openils_path}}/var/web && {{openils_path}}/bin/sitemap_generator --config-file {{openils_path}}/conf/opensrf.xml --lib-hostname {{domain_name}}"
+  - name: Run the hold targeter
+    cron: user="opensrf" name="Run the hold targeter" minute="4" job=". /etc/profile && cd {{openils_path}}/bin/hold_targeter.pl {{openils_path}}/conf/opensrf_core.xml"
+  - name: Run the hold thawer
+    cron: user="opensrf" name="Run the hold thawer" minute="4" hour="0" job=". /etc/profile && cd {{openils_path}}/bin/thaw_expired_frozen_holds.srfsh"
+  - name: Generate fines
+    cron: user="opensrf" name="Generate fines" minute="30" hour="0" job=". /etc/profile && cd {{openils_path}}/bin/fine_generator.pl {{openils_path}}/conf/opensrf_core.xml"
+  - name: Run the reshelving completer
+    cron: user="opensrf" name="Run the reshelving completer" minute="2" hour="0" job=". /etc/profile && cd {{openils_path}}/bin/reshelving_complete.srfsh"
+  - name: Run the pending user purger
+    cron: user="opensrf" name="Run the pending user purger" minute="30" hour="2" job=". /etc/profile && cd {{openils_path}}/bin/purge_pending_users.srfsh"
+  - name:  create the list of blocked patrons for offline use
+    cron: user="opensrf" name="create the list of blocked patrons for offline use" minute="30" hour="6" job=". /etc/profile && cd {{openils_path}}/bin/offline-blocked-list.pl {{openils_path}}/conf/opensrf_core.xml > {{openils_path}}/var/web/standalone/list.txt"
+  - name: Run the hard due date updater
+    cron: user="opensrf" name="Run the hard due date updater" minute="2" hour="3" job=". /etc/profile && cd {{openils_path}}/bin/update_hard_due_dates.srfsh"
+  - name: Calculate scores for popularity badges
+    cron: user="opensrf" name="Calculate scores for popularity badges" minute="30" hour="4" job=". /etc/profile && cd {{openils_path}}/bin/badge_score_generator.pl {{openils_path}}/conf/opensrf_core.xml"
+
+  - name: Runs all pending A/T events every half hour
+    cron: user="opensrf" name="Runs all pending A/T events every half hour" minute="30" job=". /etc/profile && cd {{openils_path}}/bin/action_trigger_runner.pl --osrf-config {{openils_path}}/conf/opensrf_core.xml --run-pending"
+  - name: A/T hourly
+    cron: user="opensrf" name="A/T hourly" minute="0" job=". /etc/profile && cd {{openils_path}}/bin/action_trigger_runner.pl --osrf-config {{openils_path}}/conf/opensrf_core.xml --process-hooks --granularity hourly"
+  - name: A/T daily
+    cron: user="opensrf" name="A/T daily" minute="5" hour="3" job=". /etc/profile && cd {{openils_path}}/bin/action_trigger_runner.pl --osrf-config {{openils_path}}/conf/opensrf_core.xml --process-hooks --granularity daily"
+  - name: A/T weekdays
+    cron: user="opensrf" name="A/T weekdays" minute="10" hour="3" weekday="1-5" job=". /etc/profile && cd {{openils_path}}/bin/action_trigger_runner.pl --osrf-config {{openils_path}}/conf/opensrf_core.xml --process-hooks --granularity weekdays"
+  - name: A/T weekly
+    cron: user="opensrf" name="A/T weekly" minute="2" hour="3" weekday="0" job=". /etc/profile && cd {{openils_path}}/bin/action_trigger_runner.pl --osrf-config {{openils_path}}/conf/opensrf_core.xml --process-hooks --granularity weekly"
+  - name: A/T monthly
+    cron: user="opensrf" name="A/T monthly" minute="20" hour="3" day="1" job=". /etc/profile && cd {{openils_path}}/bin/action_trigger_runner.pl --osrf-config {{openils_path}}/conf/opensrf_core.xml --process-hooks --granularity monthly"
+  - name: A/T yearly
+    cron: user="opensrf" name="A/T yearly" minute="25" hour="3" day="1" month="1" job=". /etc/profile && cd {{openils_path}}/bin/action_trigger_runner.pl --osrf-config {{openils_path}}/conf/opensrf_core.xml --process-hooks --granularity yearly"    
+
+  - name: Setup ping.txt
+    remote_user: opensrf
+    shell: echo pong > {{openils_path}}/var/web/ping.txt && chown opensrf:opensrf {{openils_path}}/var/web/ping.txt
+  - name: chowning openils
+    become: true
+    shell: chown -R opensrf:opensrf {{openils_path}}
+
+...

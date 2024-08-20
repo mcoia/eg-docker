@@ -93,7 +93,7 @@
     become_user: opensrf
     environment:
       PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
-    shell: cd /home/opensrf/repos && git clone git://git.evergreen-ils.org/Evergreen.git
+    shell: cd /home/opensrf/repos && cp {{evergreen_tarball}} . && tar zxvf *.tar.gz && mv {{evergreen_server_filename}} Evergreen
 
   - name: OpenSRF Git Add remote
     become: true
@@ -253,28 +253,12 @@
 # # ### OPENSRF IS FINISHED
 
 ### STARTING EVERGREEN SECTION
-  - name: Evergreen Git Add remote
-    become: true
-    become_user: opensrf
-    shell: cd /home/opensrf/repos/Evergreen && git remote add -f working git://git.evergreen-ils.org/working/Evergreen.git
-    ignore_errors: yes
-
-  - name: Evergreen Git Add remote
-    become: true
-    become_user: opensrf
-    shell: cd /home/opensrf/repos/Evergreen && git remote set-url --push working git@git.evergreen-ils.org:working/Evergreen.git
-    ignore_errors: yes
 
 ### if you chose bionic but Evergreen version < 3.3, then we need to install this step with a newer version of evergreen
   - name: register special case
     set_fact: switch_to_newer_version='yes'
     when: (ubuntu_version|lower == 'focal' or ubuntu_version|lower == 'bionic' or ubuntu_version|lower == 'jammy') and ( (evergreen_major_version|int == 3 and evergreen_minor_version|int < 6) or (evergreen_major_version|int < 3) )
 
-  - name: Evergreen Git fetch all
-    become: true
-    become_user: opensrf
-    shell: cd /home/opensrf/repos/Evergreen && git reset --hard && git checkout tags/rel_3_6_0 && git fetch --all && git pull
-    when: switch_to_newer_version is defined
   - name: Setup Evergreen prerequisites 
     become: true
     shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}
@@ -295,22 +279,6 @@
     become: true
     shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install postgres-server-ubuntu-{{ ubuntu_version }}
     when: switch_to_newer_version is defined
-
-  - name: Evergreen Git fetch all
-    become: true
-    become_user: opensrf
-    shell: cd /home/opensrf/repos/Evergreen && git clean -x -f -d && git checkout {{evergreen_git_branch}} && git fetch --all && git pull && git config --global user.email "just_need_to_satisfy_git@yoyo.com" && git config --global user.name "checkoutuser"
-
-  - name: Evergreen Git Cherry pick loop Debug
-    become: true
-    become_user: opensrf
-    debug: msg="Cherry Picking {{ item }}"
-    with_items: "{{ Evergreen_cherry_picks }}"
-  - name: Evergreen Git Cherry pick loop
-    become: true
-    become_user: opensrf
-    shell: cd /home/opensrf/repos/Evergreen && git cherry-pick {{ item }}
-    with_items: "{{ Evergreen_cherry_picks }}"
 
   - name: Setup Evergreen prerequisites 
     become: true
@@ -615,7 +583,7 @@
   - lineinfile:
       dest: /etc/apache2/eg_vhost.conf
       insertafter: . sample staff-specific translation files
-      line: PerlAddVar OILSWebLocale "/openils/var/data/locale/staff/fr-CA.po"
+      line: PerlAddVar OILSWebLocale "{{openils_path}}/var/data/locale/staff/fr-CA.po"
     when: add_evergreen_language_support|bool == true
 
   - lineinfile:

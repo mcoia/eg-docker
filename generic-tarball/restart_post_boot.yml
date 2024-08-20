@@ -1,0 +1,152 @@
+---
+
+- hosts: localhost
+  connection: local
+  remote_user: ma
+  become_method: sudo
+  vars_files:
+    - vars.yml
+  tasks:
+  - name: Remove ping.txt file
+    become: true
+    file: path="{{openils_path}}/var/web/ping.txt" state=absent
+  - name: Stop Web services
+    ignore_errors: yes
+    become: true
+    service:
+      name: apache2
+      state: stopped
+# service module is broken for ansible/jammy/docker
+  - name: Stopping apache2 manually
+    ignore_errors: yes
+    shell: /etc/init.d/apache2 stop
+    when: ubuntu_version|lower == 'jammy'
+
+  - name: Kill z39.50
+    become: true
+    ignore_errors: yes
+    shell: ps aux | grep simple[2]zoom | awk '{print $2}' | xargs kill
+  - name: Stop Websocketd
+    become: true
+    ignore_errors: yes
+    shell: "/bin/ps -ef | /bin/grep osrf-websocket-stdio | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9"
+  - name: Stop nginx Websockets proxy
+    ignore_errors: yes
+    become: true
+    service:
+      name: nginx
+      state: stopped
+# service module is broken for ansible/jammy/docker
+  - name: Starting nginx manually
+    ignore_errors: yes
+    shell: /etc/init.d/nginx stop
+    when: ubuntu_version|lower == 'jammy'
+  - name: Stop OpenSRF
+    become: true
+    become_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/osrf_control --localhost --stop-all
+  - name: Stop SIP
+    become: true
+    become_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/oils_ctl.sh -a stop_sip
+  - name: Kill OpenSRF
+    ignore_errors: yes
+    shell: "/bin/ps -ef | /bin/grep OpenSRF | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9"
+  - name: Kill SIP
+    ignore_errors: yes
+    shell: /bin/ps -ef | /bin/grep -i sip | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9
+  - name: Stop ejabberd
+    become: true
+    ignore_errors: yes
+    service:
+      name: ejabberd
+      state: stopped
+  - name: Kill ejabberd
+    ignore_errors: yes
+    shell: /bin/ps -ef | /bin/grep -i ejabberd | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9
+  - name: Start ejabberd
+    ignore_errors: yes
+    become: true
+    service:
+      name: ejabberd
+      state: started
+# service module is broken for ansible/jammy/docker
+  - name: Starting ejabberd manually
+    ignore_errors: yes
+    shell: /etc/init.d/ejabberd start
+    when: ubuntu_version|lower == 'jammy'
+  - name: Pausing for ejabberd to start
+    pause: seconds=10
+  - name: Start OpenSRF
+    become: true
+    become_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/osrf_control --localhost --start-all
+  - name: Pausing for OpenSRF to spawn Drones
+    pause: seconds=5
+  - name: Run autogen
+    become: true
+    become_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell:  export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/autogen.sh
+  - name: Start SIP
+    become: true
+    become_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: "{{openils_path}}/bin/oils_ctl.sh -a start_sip"
+### ## Start z39.50
+  - name: Start z39.50 stuff
+    become: true
+    shell: /usr/bin/perl -w /usr/bin/simple2zoom -c {{openils_path}}/conf/dgo.conf -- -f {{openils_path}}/conf/xml2marc-yaz.cfg localhost:2210 localhost.org:210 -v all,sessiondetail,requestdetail,zoom,zoomdetails &
+  - name: restarting cron
+    ignore_errors: yes
+    service:
+      name: cron
+      state: restarted
+  - name: restarting cron
+    ignore_errors: yes
+    shell: /etc/init.d/cron stop
+    when: ubuntu_version|lower == 'jammy'
+
+  - name: Start Web services
+    become: true
+    ignore_errors: yes
+    service:
+      name: apache2
+      state: started
+
+  - name: Start Web services
+    become: true
+    ignore_errors: yes
+    shell: /etc/init.d/apache2 start
+    when: ubuntu_version|lower == 'jammy'
+
+  - name: Starting websocketd
+    become: true
+    become_user: opensrf
+    shell: '/egconfigs/start_websocketd'
+  - name: Start nginx Websockets proxy
+    become: true
+    ignore_errors: yes
+    service:
+      name: nginx
+      state: started
+
+  - name: Start nginx Websockets proxy manually
+    become: true
+    ignore_errors: yes
+    shell: /etc/init.d/nginx start
+    when: ubuntu_version|lower == 'jammy'
+
+  - name: Setup ping.txt
+    remote_user: opensrf
+    shell: echo pong > {{openils_path}}/var/web/ping.txt && chown opensrf:opensrf {{openils_path}}/var/web/ping.txt
+
+...

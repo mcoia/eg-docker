@@ -1,0 +1,46 @@
+---
+#ansible-playbook /mnt/evergreen/playbooks/restart_app_services.yml --private-key /home/user/.ssh/id_rsa -vvvv -e "hosts=192.168.12.49"
+
+- hosts: '{{hosts}}'
+  connection: local
+  remote_user: user
+  become_method: sudo
+  vars_files:
+    - vars.yml
+  tasks:
+    - name: Show var
+      debug: msg={{opensrf_git_branch}}
+
+    - name: register opensrf_git_branch
+      set_fact: opensrf_git_branch='test'
+      when: ubuntu_version|lower == 'focal'
+
+    - name: Show var
+      debug: msg={{opensrf_git_branch}}
+
+    - name: test evergreen version number manipulation
+      set_fact:
+        eg_compare: "{{evergreen_version|regex_replace('^(\\d*)\\..*$', '\\1') }}"
+
+    - name: Show var
+      debug: msg={{eg_compare}}
+
+    - name: test evergreen version number manipulation
+      set_fact:
+        eg_compare: "{{evergreen_version|regex_replace('\\.', '_') }}"
+
+    - name: Show var
+      debug: msg={{evergreen_stamp_id}}
+
+    - name: Show var
+      debug: msg={{install_xul_client}}
+
+    - name: test
+      file:
+        path: "{{openils_path}}/var/web/xul/server"
+        state: absent
+
+    - name: Show var
+      debug: msg={{postgres_version}}
+
+...
