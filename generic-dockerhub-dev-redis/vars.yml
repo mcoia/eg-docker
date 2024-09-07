@@ -104,4 +104,7 @@
 ]
   SIPServer_cherry_picks: []
   install_pg_tap: yes
+  # Also install the Evergreen Universe Rust project
+  # see https://github.com/kcls/evergreen-universe-rs
+  install_rust: no
 ...
