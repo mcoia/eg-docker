@@ -888,5 +888,23 @@
       path: /etc/apt/preferences.d/mozilla
       regexp: '^\s*(.*)$'
       replace: \1
-
+  - name: setup Rust prerequisites
+    become: true
+    when: install_rust|bool == true
+    apt:
+      state: present
+      pkg:
+      - build-essential
+      - pkg-config
+      - libssl-dev
+      - rust-all
+  - name: clone and build the Evergreen Universe Rust project
+    become: true
+    become_user: opensrf
+    when: install_rust|bool == true
+    shell: cd /home/opensrf/repos && git clone https://github.com/kcls/evergreen-universe-rs && cd evergreen-universe-rs && make build
+  - name: install the Evergreen Universe Rust project
+    become: true
+    when: install_rust|bool == true
+    shell: cd /home/opensrf/repos/evergreen-universe-rs && make install-bin
 ...
