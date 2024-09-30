@@ -237,23 +237,23 @@
     when: switch_to_newer_version is defined
   - name: Setup Evergreen prerequisites 
     become: true
-    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}
+    shell: export PERL_MM_USE_DEFAULT=1; cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}
     when: switch_to_newer_version is defined
   - name: Setup Evergreen prerequisites 2nd trip through
     become: true
-    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}
+    shell: export PERL_MM_USE_DEFAULT=1; cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}
     when: switch_to_newer_version is defined
   - name: Setup Evergreen developer packages
     become: true
-    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}-developer
+    shell: export PERL_MM_USE_DEFAULT=1; cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}-developer
     when: switch_to_newer_version is defined
   - name: Setup Evergreen translator packages
     become: true
-    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}-translator
+    shell: export PERL_MM_USE_DEFAULT=1; cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}-translator
     when: switch_to_newer_version is defined
   - name: Setup Evergreen Postgres packages
     become: true
-    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install postgres-server-ubuntu-{{ ubuntu_version }}
+    shell: export PERL_MM_USE_DEFAULT=1; cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install postgres-server-ubuntu-{{ ubuntu_version }}-{{ postgres_version }}
     when: switch_to_newer_version is defined
 
   - name: Evergreen Git fetch all
@@ -274,33 +274,33 @@
 
   - name: Setup Evergreen prerequisites 
     become: true
-    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}
+    shell: export PERL_MM_USE_DEFAULT=1; cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}
     when: switch_to_newer_version is not defined
 
   - name: Setup Evergreen prerequisites 2nd trip through
     become: true
-    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}
+    shell: export PERL_MM_USE_DEFAULT=1; cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}
     when: switch_to_newer_version is not defined
 
   - name: Setup Evergreen developer packages
     become: true
-    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}-developer
+    shell: export PERL_MM_USE_DEFAULT=1; cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}-developer
     when: switch_to_newer_version is not defined
 
   - name: Setup Evergreen translator packages
     become: true
-    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}-translator
+    shell: export PERL_MM_USE_DEFAULT=1; cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}-translator
     when: switch_to_newer_version is not defined
 
 ## Install Database
   - name: Setup Evergreen Postgres packages postgres-server-ubuntu-{{ ubuntu_version }}-{{ postgres_version }}
     become: true
-    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install postgres-server-ubuntu-{{ ubuntu_version }}-{{ postgres_version }}
+    shell: export PERL_MM_USE_DEFAULT=1; cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install postgres-server-ubuntu-{{ ubuntu_version }}-{{ postgres_version }}
     when: postgres_version|int > 9.6
 
   - name: Setup Evergreen Postgres packages postgres-server-ubuntu-{{ ubuntu_version }}
     become: true
-    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install postgres-server-ubuntu-{{ ubuntu_version }}
+    shell: export PERL_MM_USE_DEFAULT=1; cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install postgres-server-ubuntu-{{ ubuntu_version }}
     when: postgres_version|int < 10 and switch_to_newer_version is not defined
 
   - name: Allow postgres to talk outside
@@ -312,6 +312,12 @@
     become: true
     ignore_errors: yes
     lineinfile: "dest=/etc/postgresql/{{ postgres_version }}/main/postgresql.conf state=present regexp='listen_addresses' line='listen_addresses = \\'*\\''"
+
+  - name: Fix JIT settings in postgresql.conf
+    become: true
+    ignore_errors: yes
+    lineinfile: "dest=/etc/postgresql/{{ postgres_version }}/main/postgresql.conf state=present regexp='jit_above_cost' line='jit_above_cost = -1'"
+    when: postgres_version|int > 10
 
   - name: Setup postgresql.conf (if you have a custom file in /egconfigs)
     become: true
@@ -338,7 +344,7 @@
     become_user: opensrf
     ignore_errors: yes
     shell: cd /home/opensrf/repos/Evergreen/build/i18n && mkdir locale && make newpot && make LOCALE=fr-CA updatepo && make LOCALE=es-ES updatepo && make LOCALE=cs-CZ updatepo && make LOCALE=ar-JO updatepo && make LOCALE=fr-CA install && make LOCALE=es-ES install && make LOCALE=cs-CZ install && make LOCALE=ar-JO install
-    when: evergreen_major_version|int > 2 and evergreen_minor_version|int > 5
+    when: evergreen_major_version|int > 2 and evergreen_minor_version|int > 5 and add_evergreen_language_support|bool == true
 
   - name: starting postgres
     ignore_errors: yes
@@ -838,5 +844,23 @@
       path: /etc/apt/preferences.d/mozilla
       regexp: '^\s*(.*)$'
       replace: \1
-
+  - name: setup Rust prerequisites
+    become: true
+    when: install_rust|bool == true
+    apt:
+      state: present
+      pkg:
+      - build-essential
+      - pkg-config
+      - libssl-dev
+      - rust-all
+  - name: clone and build the Evergreen Universe Rust project
+    become: true
+    become_user: opensrf
+    when: install_rust|bool == true
+    shell: cd /home/opensrf/repos && git clone https://github.com/kcls/evergreen-universe-rs && cd evergreen-universe-rs && make build
+  - name: install the Evergreen Universe Rust project
+    become: true
+    when: install_rust|bool == true
+    shell: cd /home/opensrf/repos/evergreen-universe-rs && make install-bin
 ...

@@ -5,7 +5,7 @@
 # NOTE: xenial is not supported due to the nodejs stack issues, but left here for reference in case you want to hack it
 # Evergreen didn't support ubuntu bionic until version 3.3
   ubuntu_version: jammy
-  evergreen_version: 3.12.3
+  evergreen_version: 3.13.4
 # This is tempermental. If you turn this setting on, you might end up having to manually edit the resulting installation
 # Particularly eg_vhost.conf
   add_evergreen_language_support: no
@@ -23,7 +23,7 @@
   angular_build_command: "ng build {% if (evergreen_major_version|int == 3 and evergreen_minor_version|int < 9) %}--prod{% else %}--configuration=production{% endif %}"
 
 # The latest version of OpenSRF seems to work with all versions of Evergreen.
-  opensrf_git_branch: osrf_rel_3_3_0
+  opensrf_git_branch: main
 
 # This directory will be linked to /openilspath/var/web/.well-known
   lets_encrypt_shared_web_folder: /mnt/evergreen/letsencrypt_shared_web_directory/.well-known

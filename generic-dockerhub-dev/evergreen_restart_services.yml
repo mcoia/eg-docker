@@ -176,6 +176,13 @@
     become: true
     shell: cd /home/opensrf/repos/Evergreen-build && autoreconf -i
 
+## in case the container was built before the user-provided Evergreen branch, and the newer version of Evergreen has more prereq's
+  - name: Setup Evergreen prerequisites 
+    become: true
+    ignore_errors: yes
+    shell: export PERL_MM_USE_DEFAULT=1; cd /home/opensrf/repos/Evergreen-build && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}
+    when: switch_to_newer_version is defined
+
 ## Symlink removal section
   - name: Check {{openils_path}}/var/web/js/ui/default/staff folder for existing symlink
     become: true
