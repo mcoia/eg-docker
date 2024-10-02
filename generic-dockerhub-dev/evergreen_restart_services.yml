@@ -169,7 +169,7 @@
   - name: Fix symlinks
     become: true
     ignore_errors: yes
-    shell: cd /home/opensrf/repos/Evergreen-build/Open-ILS/src/sql/Pg && cp 000.english.pg94.fts-config.sql 000.english.pg10.fts-config.sql && cp 000.english.pg94.fts-config.sql 000.english.pg11.fts-config.sql && cp 000.english.pg94.fts-config.sql 000.english.pg12.fts-config.sql && cp 000.english.pg94.fts-config.sql 000.english.pg13.fts-config.sql && cp 000.english.pg94.fts-config.sql 000.english.pg14.fts-config.sql && cp 000.english.pg94.fts-config.sql 000.english.pg95.fts-config.sql && cp 000.english.pg94.fts-config.sql 000.english.pg96.fts-config.sql
+    shell: cd /home/opensrf/repos/Evergreen-build/Open-ILS/src/sql/Pg && cp 000.english.pg94.fts-config.sql 000.english.pg10.fts-config.sql && cp 000.english.pg94.fts-config.sql 000.english.pg11.fts-config.sql && cp 000.english.pg94.fts-config.sql 000.english.pg12.fts-config.sql && cp 000.english.pg94.fts-config.sql 000.english.pg13.fts-config.sql && cp 000.english.pg94.fts-config.sql 000.english.pg14.fts-config.sql && cp 000.english.pg94.fts-config.sql 000.english.pg15.fts-config.sql && cp 000.english.pg94.fts-config.sql 000.english.pg95.fts-config.sql && cp 000.english.pg94.fts-config.sql 000.english.pg96.fts-config.sql
 
 ## reinstall Evergreen from locally provided bind mounted Evergreen folder
   - name: Running autoreconf on the git repo
@@ -180,8 +180,7 @@
   - name: Setup Evergreen prerequisites 
     become: true
     ignore_errors: yes
-    shell: export PERL_MM_USE_DEFAULT=1; cd /home/opensrf/repos/Evergreen-build && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}
-    when: switch_to_newer_version is defined
+    shell: apt-get update; export PERL_MM_USE_DEFAULT=1; cd /home/opensrf/repos/Evergreen-build && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}
 
 ## Symlink removal section
   - name: Check {{openils_path}}/var/web/js/ui/default/staff folder for existing symlink
