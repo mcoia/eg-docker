@@ -10,7 +10,7 @@
 # Particularly eg_vhost.conf
   add_evergreen_language_support: no
 # You can manually assign the Evergreen git branch, or let this regular expression figure it out based on evergreen_git_branch
-  evergreen_git_branch: tags/rel_3_13_4
+  evergreen_git_branch: main
 
   evergreen_major_version: 3
   evergreen_minor_version: 12
@@ -62,4 +62,7 @@
   OpenSRF_cherry_picks: []
   SIPServer_cherry_picks: []
   install_pg_tap: yes
+  # Also install the Evergreen Universe Rust project
+  # see https://github.com/kcls/evergreen-universe-rs
+  install_rust: no
 ...

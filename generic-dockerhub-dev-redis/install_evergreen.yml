@@ -110,7 +110,7 @@
   - name: OpenSRF Checkout Branch
     become: true
     become_user: opensrf
-    shell: cd /home/opensrf/repos/OpenSRF && git fetch --all && git pull && git checkout -b test {{opensrf_git_branch}} && git fetch --all && git config --global user.email "just_need_to_satisfy_git@yoyo.com" && git config --global user.name "checkoutuser"
+    shell: cd /home/opensrf/repos/OpenSRF && git fetch --all && git pull && git checkout -b test {{opensrf_git_branch}} && git fetch --all && git reset --hard HEAD~2 && git config --global user.email "just_need_to_satisfy_git@yoyo.com" && git config --global user.name "checkoutuser"
 
   - name: OpenSRF Git Cherry pick loop Debug
     become: true
