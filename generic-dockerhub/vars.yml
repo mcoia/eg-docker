@@ -5,7 +5,7 @@
 # NOTE: xenial is not supported due to the nodejs stack issues, but left here for reference in case you want to hack it
 # Evergreen didn't support ubuntu bionic until version 3.3
   ubuntu_version: jammy
-  evergreen_version: 3.13.4
+  evergreen_version: 3.14.0
 # This is tempermental. If you turn this setting on, you might end up having to manually edit the resulting installation
 # Particularly eg_vhost.conf
   add_evergreen_language_support: no
@@ -17,7 +17,7 @@
   evergreen_bug_version: "{{evergreen_version|regex_replace('^\\d*\\.\\d*\\.?(\\d*).*$', '\\1') }}"
   install_xul_client: "{% if (evergreen_major_version|int > 2 and evergreen_minor_version|int < 3) or evergreen_major_version|int == 2 %}yes{% else %}no{% endif %}"
   evergreen_stamp_id: "{{ 'rel_' + (evergreen_version|regex_replace('\\.', '_')) }}"
-  postgres_version: "{% if ubuntu_version|lower == 'jammy' or ubuntu_version|lower == 'focal' %}10{% elif ubuntu_version|lower == 'bionic' %}9.6{% else %}9.5{% endif %}"
+  postgres_version: "{% if evergreen_major_version|int == 3 and evergreen_minor_version|int > 13 %}15{% elif ubuntu_version|lower == 'jammy' or ubuntu_version|lower == 'focal' %}10{% elif ubuntu_version|lower == 'bionic' %}9.6{% else %}9.5{% endif %}"
   websocketd_version: 0.3.0
   websocketd_filename: "websocketd-{{ websocketd_version }}-linux_{% if ansible_architecture == 'aarch64' %}arm64{% else %}amd64{% endif %}.zip"
   angular_build_command: "ng build {% if (evergreen_major_version|int == 3 and evergreen_minor_version|int < 9) %}--prod{% else %}--configuration=production{% endif %}"
@@ -58,7 +58,7 @@
   opensrf_memcached_server: 127.0.0.1
   opensrf_memcached_port: 11211
   use_custom_opensrf_xml: no
-  Evergreen_cherry_picks: []
+  Evergreen_cherry_picks: ['0311de0825084499642407f09e08f63a93b46e6f']
   OpenSRF_cherry_picks: []
   SIPServer_cherry_picks: []
   install_pg_tap: yes
