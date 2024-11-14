@@ -58,7 +58,7 @@
   opensrf_memcached_server: 127.0.0.1
   opensrf_memcached_port: 11211
   use_custom_opensrf_xml: no
-  Evergreen_cherry_picks: ['0311de0825084499642407f09e08f63a93b46e6f']
+  Evergreen_cherry_picks: []
   OpenSRF_cherry_picks: []
   SIPServer_cherry_picks: []
   install_pg_tap: yes
