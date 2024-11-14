@@ -59,52 +59,7 @@
   opensrf_memcached_port: 11211
   use_custom_opensrf_xml: no
   Evergreen_cherry_picks: ['0311de0825084499642407f09e08f63a93b46e6f']
-  OpenSRF_cherry_picks: [
-'114658b0',
-'0d2e2717',
-'81121d9a',
-'a93cb04a',
-'0a9c89fe',
-'1ae986b2',
-'cb9f3b11',
-'00149467',
-'37b1d3fa',
-'db06a1f8',
-'e79d88ea',
-'37dce62d',
-'7f9599e7',
-'64ebc051',
-'fcde490c',
-'6a15ca57',
-'b7753adc',
-'8816b582',
-'be71cc44',
-'915d6c0e',
-'ad75900f',
-'94a48044',
-'61ef3905',
-'a84cf999',
-'be99f074',
-'e4ad185f',
-'b7634f12',
-'46fb8a51',
-'8e62ebed',
-'c3a0a589',
-'a67ff938',
-'7703dca4',
-'4a40e63c',
-'c1f7658d',
-'61b99be1',
-'5c5bb156',
-'1259e0c0',
-'44d6fce0',
-'38d6f42b',
-'6711942f',
-'f6a5af36',
-'69d298f2',
-'d6eb44c6',
-'18c73926',
-]
+  OpenSRF_cherry_picks: []
   SIPServer_cherry_picks: []
   install_pg_tap: yes
   # Also install the Evergreen Universe Rust project
