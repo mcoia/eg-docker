@@ -23,7 +23,7 @@
   angular_build_command: "ng build {% if (evergreen_major_version|int == 3 and evergreen_minor_version|int < 9) %}--prod{% else %}--configuration=production{% endif %}"
 
 # The latest version of OpenSRF seems to work with all versions of Evergreen.
-  opensrf_git_branch: main
+  opensrf_git_branch: osrf_rel_3_3_2
 
 # This directory will be linked to /openilspath/var/web/.well-known
   lets_encrypt_shared_web_folder: /mnt/evergreen/letsencrypt_shared_web_directory/.well-known
