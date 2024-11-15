@@ -38,10 +38,6 @@ RUN	sed -i -E 's/^(\s*)system\(\);/\1unix-stream("\/dev\/log");/' /etc/syslog-ng
 RUN	sed -i 's/^#\(SYSLOGNG_OPTS="--no-caps"\)/\1/g' /etc/default/syslog-ng
 
 ADD hosts /egconfigs/hosts
-ADD ejabberd_jammy.yml /egconfigs/ejabberd_jammy.yml
-ADD ejabberd_focal.yml /egconfigs/ejabberd_focal.yml
-ADD ejabberd_bionic.yml /egconfigs/ejabberd_bionic.yml
-ADD ejabberd_xenial.yml /egconfigs/ejabberd_xenial.yml
 
 ADD logrotate_evergreen.txt /egconfigs/logrotate_evergreen.txt
 ADD db_switcher.pl /egconfigs/db_switcher.pl

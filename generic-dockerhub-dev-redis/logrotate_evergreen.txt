@@ -1,6 +1,0 @@
-replacemewith_path_and_curly_brace
- rotate 14
- compress
- size 1M
- notifempty
-}

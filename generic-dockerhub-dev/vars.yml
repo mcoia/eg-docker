@@ -12,11 +12,11 @@
 # You can manually assign the Evergreen git branch, or let this regular expression figure it out based on evergreen_git_branch
   evergreen_git_branch: main
 
-  evergreen_major_version: 3
-  evergreen_minor_version: 12
-  evergreen_bug_version: 3
-  install_xul_client: no
-  evergreen_stamp_id: main_stamp
+  evergreen_major_version: "{{evergreen_version|regex_replace('^(\\d*)\\..*$', '\\1') }}"
+  evergreen_minor_version: "{{evergreen_version|regex_replace('^\\d*\\.(\\d*)\\.?.*$', '\\1') }}"
+  evergreen_bug_version: "{{evergreen_version|regex_replace('^\\d*\\.\\d*\\.?(\\d*).*$', '\\1') }}"
+  install_xul_client: "{% if (evergreen_major_version|int > 2 and evergreen_minor_version|int < 3) or evergreen_major_version|int == 2 %}yes{% else %}no{% endif %}"
+  evergreen_stamp_id: "{{ 'rel_' + (evergreen_version|regex_replace('\\.', '_')) }}"
   postgres_version: "{% if ubuntu_version|lower == 'jammy' or ubuntu_version|lower == 'focal' %}15{% elif ubuntu_version|lower == 'bionic' %}9.6{% else %}9.5{% endif %}"
   websocketd_version: 0.3.0
   websocketd_filename: "websocketd-{{ websocketd_version }}-linux_{% if ansible_architecture == 'aarch64' %}arm64{% else %}amd64{% endif %}.zip"
@@ -39,7 +39,7 @@
 # do with a shell script. Setting SSL certificates, putting in place custom tt2 files, etc.
   sync_openils_sub_folders_cmd: /mnt/evergreen/apps/syncope
 
-  ejabberd_password: ejabberdpassword
+
   os_user_password: password
   openils_path: /openils
 
@@ -58,7 +58,7 @@
   opensrf_memcached_server: 127.0.0.1
   opensrf_memcached_port: 11211
   use_custom_opensrf_xml: no
-  Evergreen_cherry_picks: ['0311de0825084499642407f09e08f63a93b46e6f']
+  Evergreen_cherry_picks: []
   OpenSRF_cherry_picks: []
   SIPServer_cherry_picks: []
   install_pg_tap: yes

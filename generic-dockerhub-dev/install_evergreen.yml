@@ -95,6 +95,35 @@
       PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
     shell: cd /home/opensrf/repos && git clone git://git.evergreen-ils.org/Evergreen.git
 
+  - name: OpenSRF Git Add remote
+    become: true
+    become_user: opensrf
+    shell: cd /home/opensrf/repos/OpenSRF && git remote add -f working git://git.evergreen-ils.org/working/OpenSRF.git
+    ignore_errors: yes
+
+  - name: OpenSRF Git Add remote
+    become: true
+    become_user: opensrf
+    shell: cd /home/opensrf/repos/OpenSRF && git remote set-url --push working git@git.evergreen-ils.org:working/OpenSRF.git
+    ignore_errors: yes
+
+  - name: OpenSRF Checkout Branch
+    become: true
+    become_user: opensrf
+    shell: cd /home/opensrf/repos/OpenSRF && git fetch --all && git pull && git checkout -b test {{opensrf_git_branch}} && git fetch --all && git config --global user.email "just_need_to_satisfy_git@yoyo.com" && git config --global user.name "checkoutuser"
+
+  - name: OpenSRF Git Cherry pick loop Debug
+    become: true
+    become_user: opensrf
+    debug: msg="Cherry Picking {{ item }}"
+    with_items: "{{ OpenSRF_cherry_picks }}"
+
+  - name: OpenSRF Git Cherry pick loop
+    become: true
+    become_user: opensrf
+    shell: cd /home/opensrf/repos/OpenSRF && git cherry-pick {{ item }}
+    with_items: "{{ OpenSRF_cherry_picks }}"
+
   - name: Install pkgconf just in case
     become: true
     apt:
@@ -136,79 +165,40 @@
 
   - name: Add local IP to hosts
     become: true
-    shell: echo {{ansible_all_ipv4_addresses.0}} {{ansible_fqdn}} {{ansible_hostname}} >> /etc/hosts
+    shell: echo 127.0.0.1 localhost public.localhost private.localhost >> /etc/hosts
     ignore_errors: yes
 
-  - name: Put the ejabberd config into place
+  - name: Setup redis-accounts config file
     become: true
-    shell: cp /egconfigs/ejabberd_{{ubuntu_version|lower}}.yml /etc/ejabberd/ejabberd.yml
+    copy:
+      remote_src: true
+      src: "{{openils_path}}/conf/redis-accounts.txt.example"
+      dest: "{{openils_path}}/conf/redis-accounts.txt"
+      force: no
 
   - name: update /etc/ld.so.conf.d/opensrf.conf and ldconfig
     become: true
     shell: echo {{openils_path}}/lib > /etc/ld.so.conf.d/opensrf.conf && ldconfig
 
-  - name: Kill ejabberd
-    ignore_errors: yes
-    shell: "/bin/ps -ef | /bin/grep ejabber | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9"
-  - name: Starting ejabberd
+# Fix default redis config file
+  - lineinfile: "dest=/etc/redis/redis.conf state=present regexp='save \"\"' line='save \"\"'"
+  - lineinfile: "dest=/etc/redis/redis.conf state=present regexp='save[\\t\\s]+\\d' line=''"
+  - lineinfile: "dest=/etc/redis/redis.conf state=present regexp='save[\\t\\s]+\\d' line=''"
+  - lineinfile: "dest=/etc/redis/redis.conf state=present regexp='save[\\t\\s]+\\d' line=''"
+
+  - name: restarting redis
     ignore_errors: yes
     service:
-      name: ejabberd
-      state: started
+      name: redis-server
+      state: restarted
+
 # service module is broken for ansible/jammy/docker
-  - name: Starting ejabberd manually
+  - name: starting redis-server manually
     ignore_errors: yes
-    shell: /etc/init.d/ejabberd start
+    shell: /etc/init.d/redis-server restart
     when: ubuntu_version|lower == 'jammy'
 
-  - name: Pausing for ejabberd
-    pause: seconds=2
-
-  - name: Remove ejabberd users
-    become: true
-    become_user: ejabberd
-    shell: ejabberdctl unregister router private.localhost && ejabberdctl unregister opensrf private.localhost && ejabberdctl unregister router public.localhost && ejabberdctl unregister opensrf public.localhost
-    when: ubuntu_version|lower == 'bionic' or ubuntu_version|lower == 'focal' or ubuntu_version|lower == 'jammy'
-
-  - name: Setup ejabberd users
-    become: true
-    become_user: ejabberd
-    shell: ejabberdctl register router private.localhost {{ejabberd_password}} && ejabberdctl register opensrf private.localhost {{ejabberd_password}} && ejabberdctl register router public.localhost {{ejabberd_password}} && ejabberdctl register opensrf public.localhost {{ejabberd_password}}
-    when: ubuntu_version|lower == 'bionic' or ubuntu_version|lower == 'focal' or ubuntu_version|lower == 'jammy'
-
-  - name: Setup ejabberd users as root (if xenial)
-    become: true
-    shell: ejabberdctl unregister router private.localhost && ejabberdctl unregister opensrf private.localhost && ejabberdctl unregister router public.localhost && ejabberdctl unregister opensrf public.localhost
-    when: ubuntu_version|lower == 'xenial'
-
-  - name: Setup ejabberd users as root (if xenial)
-    become: true
-    shell: ejabberdctl register router private.localhost {{ejabberd_password}} && ejabberdctl register opensrf private.localhost {{ejabberd_password}} && ejabberdctl register router public.localhost {{ejabberd_password}} && ejabberdctl register opensrf public.localhost {{ejabberd_password}}
-    when: ubuntu_version|lower == 'xenial'
-
-  - name: Copy example opensrf_core.xml
-    become: true
-    become_user: opensrf
-    shell: cp {{openils_path}}/conf/opensrf_core.xml.example {{openils_path}}/conf/opensrf_core.xml
-
-  - lineinfile: "dest={{openils_path}}/conf/opensrf_core.xml state=present regexp='<passwd>password</passwd>' line='<passwd>{{ejabberd_password}}</passwd>'"
-  - lineinfile: "dest={{openils_path}}/conf/opensrf_core.xml state=present regexp='<passwd>password</passwd>' line='<passwd>{{ejabberd_password}}</passwd>'"
-  - lineinfile: "dest={{openils_path}}/conf/opensrf_core.xml state=present regexp='<password>password</password>' line='<password>{{ejabberd_password}}</password>'"
-  - lineinfile: "dest={{openils_path}}/conf/opensrf_core.xml state=present regexp='<password>password</password>' line='<password>{{ejabberd_password}}</password>'"
-
-  - name: Setup .srfsh.xml
-    become: true
-    become_user: opensrf
-    shell: cp {{openils_path}}/conf/srfsh.xml.example ~/.srfsh.xml && cp {{openils_path}}/conf/opensrf.xml.example {{openils_path}}/conf/opensrf.xml
-  - lineinfile: "dest=/home/opensrf/.srfsh.xml state=present regexp='<passwd>' line='<passwd>{{ejabberd_password}}</passwd>'"
   - lineinfile: "dest=/home/opensrf/.bashrc state=present line='export PATH=$PATH:{{openils_path}}/bin'"
-
-  - name: Start Opensrf
-    become: true
-    become_user: opensrf
-    environment:
-      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
-    shell: osrf_control --localhost --start-all
 
   - name: Install unzip
     apt: name=unzip
@@ -587,14 +577,70 @@
     become: true
     shell: /usr/sbin/a2dismod mpm_event && /usr/sbin/a2enmod mpm_prefork && /usr/sbin/a2ensite eg.conf && chown opensrf /var/lock/apache2
 
+  - name: Copy example opensrf_core.xml
+    become: true
+    become_user: opensrf
+    shell: cp {{openils_path}}/conf/opensrf_core.xml.example {{openils_path}}/conf/opensrf_core.xml
+
+  - name: Get redis opensrf uuid
+    shell: grep 'ACL SETUSER opensrf on >' {{openils_path}}/conf/redis-accounts.txt | cut -d'>' -f2
+    register: redis_opensrf_uuid
+
+  - name: Get redis gateway uuid
+    shell: grep 'ACL SETUSER gateway on >' {{openils_path}}/conf/redis-accounts.txt | cut -d'>' -f2
+    register: redis_gateway_uuid
+
+  - name: Get redis router uuid
+    shell: grep 'ACL SETUSER router on >' {{openils_path}}/conf/redis-accounts.txt | cut -d'>' -f2
+    register: redis_router_uuid
+
+  - name: Setup .srfsh.xml
+    become: true
+    become_user: opensrf
+    shell: cp {{openils_path}}/conf/srfsh.xml.example ~/.srfsh.xml
+
+  - name: setup password
+    become: true
+    ignore_errors: yes
+    lineinfile: "dest=/etc/postgresql/{{ postgres_version }}/main/pg_hba.conf state=present regexp='host    all     evergreen' line='host    all     evergreen       0.0.0.0/0     md5'"
+
   - name: Copy opensrf example files to {{openils_path}}/conf
     become: true
     shell: cp -b {{openils_path}}/conf/opensrf_core.xml.example {{openils_path}}/conf/opensrf_core.xml && cp -b {{openils_path}}/conf/opensrf.xml.example {{openils_path}}/conf/opensrf.xml
 
-  - lineinfile: "dest={{openils_path}}/conf/opensrf_core.xml state=present regexp='<passwd>password</passwd>' line='<passwd>{{ejabberd_password}}</passwd>'"
-  - lineinfile: "dest={{openils_path}}/conf/opensrf_core.xml state=present regexp='<passwd>password</passwd>' line='<passwd>{{ejabberd_password}}</passwd>'"
-  - lineinfile: "dest={{openils_path}}/conf/opensrf_core.xml state=present regexp='<password>password</password>' line='<password>{{ejabberd_password}}</password>'"
-  - lineinfile: "dest={{openils_path}}/conf/opensrf_core.xml state=present regexp='<password>password</password>' line='<password>{{ejabberd_password}}</password>'"
+# Ejabberd is currently enabled by default in opensrf_core.xml.
+# Modify the file to use Redis configs instead.
+  - name: Redis Ports
+    replace:
+      path: "{{openils_path}}/conf/opensrf_core.xml"
+      regexp: '<port>5222</port>'
+      replace: '<port>6379</port>'
+  - name: Redis Passwords
+    replace:
+      path: "{{openils_path}}/conf/opensrf_core.xml"
+      regexp: '<passwd>password</passwd>'
+      replace: '<!--<passwd>password</passwd>-->'
+  - name: Redis Passwords
+    replace:
+      # e.g. 456fc340-beba-4489-9070-0d6b49e9952b
+      path: "{{openils_path}}/conf/opensrf_core.xml"
+      regexp: '<passwd>([\w\-]{36})</passwd>'
+      replace: '--><passwd>\1</passwd><!--'
+  - name: Redis Passwords
+    replace:
+      path: "{{openils_path}}/conf/opensrf_core.xml"
+      regexp: '<password>password</password>'
+      replace: '<!--<password>password</password>-->'
+  - name: Redis Passwords
+    replace:
+      path: "{{openils_path}}/conf/opensrf_core.xml"
+      regexp: '<password>([\w\-]{36})</password>'
+      replace: '--><password>\1</password><!--'
+  - name: Redis Gateway Username
+    replace:
+      path: "{{openils_path}}/conf/opensrf_core.xml"
+      regexp: '\s+ </services>\n\s*\n\s+<!-- Ejabberd -->\n\s*<username>opensrf</username>'
+      replace: '\n    </services>\n    <username>gateway</username>\n'
 
 ## Starting to edit {{openils_path}}/conf/opensrf.xml if use_custom_opensrf_xml is false
   - block:

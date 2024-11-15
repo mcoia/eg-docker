@@ -59,28 +59,34 @@
   - name: Kill SIP
     ignore_errors: yes
     shell: /bin/ps -ef | /bin/grep -i sip | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9
-  - name: Stop ejabberd
+  - name: Stop redis-server
     become: true
     ignore_errors: yes
     service:
-      name: ejabberd
+      name: redis-server
       state: stopped
-  - name: Kill ejabberd
+  - name: Kill redis-server
     ignore_errors: yes
-    shell: /bin/ps -ef | /bin/grep -i ejabberd | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9
-  - name: Start ejabberd
+    shell: /bin/ps -ef | /bin/grep -i redis | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9
+  - name: Start redis-server
     ignore_errors: yes
     become: true
     service:
-      name: ejabberd
+      name: redis-server
       state: started
 # service module is broken for ansible/jammy/docker
-  - name: Starting ejabberd manually
+  - name: Starting redis-server manually
     ignore_errors: yes
-    shell: /etc/init.d/ejabberd start
+    shell: /etc/init.d/redis-server start
     when: ubuntu_version|lower == 'jammy'
-  - name: Pausing for ejabberd to start
-    pause: seconds=10
+  - name: Pausing for redis-server to start
+    pause: seconds=5
+  - name: Reset redis config
+    become: true
+    become_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/osrf_control -l --reset-message-bus
 
 ## we need to copy the incoming Evergreen repo into a local folder because Windows/Linux symlinks don't work together
   - name: Delete folder /home/opensrf/repos/Evergreen-build/Open-ILS/src/perlmods/lib/OpenILS
