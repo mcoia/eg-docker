@@ -148,7 +148,7 @@
     shell: cd /home/opensrf/repos/Evergreen-build && autoreconf -i
 
 ## in case the container was built before the user-provided Evergreen branch, and the newer version of Evergreen has more prereq's
-  - name: Setup Evergreen prerequisites 
+  - name: Setup Evergreen prerequisites
     become: true
     ignore_errors: yes
     shell: apt-get update; export PERL_MM_USE_DEFAULT=1; cd /home/opensrf/repos/Evergreen-build && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}
@@ -305,7 +305,7 @@
       name: apache2
       state: stopped
 # service module is broken for ansible/jammy/docker
-  - name: Starting apache2 manually
+  - name: Starting apache2 manually 1
     ignore_errors: yes
     shell: /etc/init.d/apache2 stop
     when: ubuntu_version|lower == 'jammy'
@@ -321,7 +321,7 @@
       name: nginx
       state: stopped
 # service module is broken for ansible/jammy/docker
-  - name: Starting nginx manually
+  - name: Starting nginx manually 1
     ignore_errors: yes
     shell: /etc/init.d/nginx stop
     when: ubuntu_version|lower == 'jammy'
@@ -340,12 +340,12 @@
   - name: Kill OpenSRF
     ignore_errors: yes
     shell: "/bin/ps -ef | /bin/grep OpenSRF | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9"
-  - name: Stopping ejabberd
+  - name: Stopping ejabberd 2
     ignore_errors: yes
     service:
       name: ejabberd
       state: stopped
-  - name: Kill ejabberd
+  - name: Kill ejabberd 3
     ignore_errors: yes
     shell: "/bin/ps -ef | /bin/grep ejabber | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9"
   - name: Kill Clark
@@ -430,7 +430,7 @@
       name: apache2
       state: started
 # service module is broken for ansible/jammy/docker
-  - name: Starting apache2 manually
+  - name: Starting apache2 manually 2
     ignore_errors: yes
     shell: /etc/init.d/apache2 start
     when: ubuntu_version|lower == 'jammy'
@@ -442,10 +442,10 @@
       owner: root
       group: root
       mode: '0755'
-  - name: Building /egconfigs/start_websocketd
+  - name: Building /egconfigs/start_websocketd 1
     become: true
     lineinfile: 'dest=/egconfigs/start_websocketd state=present regexp="#!/bin/bas" line="#!/bin/bash"'
-  - name: Building /egconfigs/start_websocketd
+  - name: Building /egconfigs/start_websocketd 2
     become: true
     lineinfile: 'dest=/egconfigs/start_websocketd state=present regexp="websocketd" line="/usr/local/bin/websocketd --loglevel error --port 7682 {{openils_path}}/bin/osrf-websocket-stdio >& /dev/null &"'
   - name: Starting websocketd
@@ -455,10 +455,10 @@
   - name: Concat the Certificates for nginx
     become: true
     shell: cat /etc/apache2/ssl/server.crt > /etc/apache2/ssl/nginx.crt
-  - name: Fix nginx certificate config
+  - name: Fix nginx certificate config 1
     become: true
     lineinfile: 'dest=/etc/nginx/sites-available/osrf-ws-http-proxy state=present regexp="ssl_certificate \/" line="ssl_certificate /etc/apache2/ssl/nginx.crt;"'
-  - name: Fix nginx certificate config
+  - name: Fix nginx certificate config 2
     become: true
     lineinfile: 'dest=/etc/nginx/sites-available/osrf-ws-http-proxy state=present regexp="ssl_certificate_key\s" line="ssl_certificate_key /etc/apache2/ssl/server.key;"'
   - name: Start nginx Websockets proxy
@@ -468,7 +468,7 @@
       name: nginx
       state: started
 # service module is broken for ansible/jammy/docker
-  - name: Starting nginx manually
+  - name: Starting nginx manually 2
     ignore_errors: yes
     shell: /etc/init.d/nginx start
     when: ubuntu_version|lower == 'jammy'
@@ -591,7 +591,7 @@
       dest: /home/opensrf/repos/Evergreen/db_control.txt
       content: |
           evergreen standard *
-          evergreen_enhanced enhanced 
+          evergreen_enhanced enhanced
   - name: Setup docker watch cron
     cron: user="root" name="Docker Watch" job=". /etc/profile && cd /home/opensrf/repos/Evergreen && ./docker-watch.sh"
 
