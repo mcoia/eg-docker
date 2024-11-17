@@ -1,0 +1,210 @@
+---
+
+- hosts: localhost
+  connection: local
+  remote_user: user
+  become_method: sudo
+  vars_files:
+    - vars.yml
+  tasks:
+  - name: Test ubuntu_version
+    fail:
+      msg: ubuntu_version is undefined
+    when: ubuntu_version is not defined
+
+  - name: Test add_evergreen_language_support
+    fail:
+      msg: add_evergreen_language_support is undefined
+    when: add_evergreen_language_support is not defined
+
+  - name: Test evergreen_git_branch
+    fail:
+      msg: evergreen_git_branch is undefined
+    when: evergreen_git_branch is not defined
+
+  - name: Test evergreen_major_version
+    fail:
+      msg: evergreen_major_version is undefined
+    when: evergreen_major_version is not defined
+
+  - name: Test evergreen_minor_version
+    fail:
+      msg: evergreen_minor_version is undefined
+    when: evergreen_minor_version is not defined
+
+  - name: Test evergreen_bug_version
+    fail:
+      msg: evergreen_bug_version is undefined
+    when: evergreen_bug_version is not defined
+
+  - name: Test install_xul_client
+    fail:
+      msg: install_xul_client is undefined
+    when: install_xul_client is not defined
+
+  - name: Test evergreen_stamp_id
+    fail:
+      msg: evergreen_stamp_id is undefined
+    when: evergreen_stamp_id is not defined
+
+  - name: Test postgres_version
+    fail:
+      msg: postgres_version is undefined
+    when: postgres_version is not defined
+
+  - name: Test websocketd_version
+    fail:
+      msg: websocketd_version is undefined
+    when: websocketd_version is not defined
+
+  - name: Test websocketd_filename
+    fail:
+      msg: websocketd_filename is undefined
+    when: websocketd_filename is not defined
+
+  - name: Test angular_build_command
+    fail:
+      msg: angular_build_command is undefined
+    when: angular_build_command is not defined
+
+  - name: Test opensrf_git_branch
+    fail:
+      msg: opensrf_git_branch is undefined
+    when: opensrf_git_branch is not defined
+
+  - name: Test lets_encrypt_shared_web_folder
+    fail:
+      msg: lets_encrypt_shared_web_folder is undefined
+    when: lets_encrypt_shared_web_folder is not defined
+
+  - name: Test shared_reports_folder
+    fail:
+      msg: shared_reports_folder is undefined
+    when: shared_reports_folder is not defined
+
+  - name: Test shared_circ_notices_folder
+    fail:
+      msg: shared_circ_notices_folder is undefined
+    when: shared_circ_notices_folder is not defined
+
+  - name: Test sync_openils_sub_folders_cmd
+    fail:
+      msg: sync_openils_sub_folders_cmd is undefined
+    when: sync_openils_sub_folders_cmd is not defined
+
+  - name: Test ejabberd_password
+    fail:
+      msg: ejabberd_password is undefined
+    when: ejabberd_password is not defined
+
+  - name: Test os_user_password
+    fail:
+      msg: os_user_password is undefined
+    when: os_user_password is not defined
+
+  - name: Test openils_path
+    fail:
+      msg: openils_path is undefined
+    when: openils_path is not defined
+
+  - name: Test domain_name
+    fail:
+      msg: domain_name is undefined
+    when: domain_name is not defined
+
+  - name: Test database_host
+    fail:
+      msg: database_host is undefined
+    when: database_host is not defined
+
+  - name: Test database_database
+    fail:
+      msg: database_database is undefined
+    when: database_database is not defined
+
+  - name: Test database_port
+    fail:
+      msg: database_port is undefined
+    when: database_port is not defined
+
+  - name: Test database_user
+    fail:
+      msg: database_user is undefined
+    when: database_user is not defined
+
+  - name: Test database_password
+    fail:
+      msg: database_password is undefined
+    when: database_password is not defined
+
+  - name: Test database_sample_data_set
+    fail:
+      msg: database_sample_data_set is undefined
+    when: database_sample_data_set is not defined
+
+  - name: Test evergreen_global_admin
+    fail:
+      msg: evergreen_global_admin is undefined
+    when: evergreen_global_admin is not defined
+
+  - name: Test evergreen_global_admin_password
+    fail:
+      msg: evergreen_global_admin_password is undefined
+    when: evergreen_global_admin_password is not defined
+
+  - name: Test sender_address
+    fail:
+      msg: sender_address is undefined
+    when: sender_address is not defined
+
+  - name: Test base_reporter_uri
+    fail:
+      msg: base_reporter_uri is undefined
+    when: base_reporter_uri is not defined
+
+  - name: Test reporter_output_folder
+    fail:
+      msg: reporter_output_folder is undefined
+    when: reporter_output_folder is not defined
+
+  - name: Test opensrf_zip_file_line
+    fail:
+      msg: opensrf_zip_file_line is undefined
+    when: opensrf_zip_file_line is not defined
+
+  - name: Test opensrf_memcached_server
+    fail:
+      msg: opensrf_memcached_server is undefined
+    when: opensrf_memcached_server is not defined
+
+  - name: Test opensrf_memcached_port
+    fail:
+      msg: opensrf_memcached_port is undefined
+    when: opensrf_memcached_port is not defined
+
+  - name: Test use_custom_opensrf_xml
+    fail:
+      msg: use_custom_opensrf_xml is undefined
+    when: use_custom_opensrf_xml is not defined
+
+  - name: Test Evergreen_cherry_picks
+    fail:
+      msg: Evergreen_cherry_picks is undefined
+    when: Evergreen_cherry_picks is not defined
+
+  - name: Test OpenSRF_cherry_picks
+    fail:
+      msg: OpenSRF_cherry_picks is undefined
+    when: OpenSRF_cherry_picks is not defined
+
+  - name: Test SIPServer_cherry_picks
+    fail:
+      msg: SIPServer_cherry_picks is undefined
+    when: SIPServer_cherry_picks is not defined
+
+  - name: Test install_pg_tap
+    fail:
+      msg: install_pg_tap is undefined
+    when: install_pg_tap is not defined
+
+...

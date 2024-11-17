@@ -1,5 +1,4 @@
 ---
-#ansible-playbook /mnt/evergreen/playbooks/restart_app_services.yml --private-key /home/user/.ssh/id_rsa -vvvv -e "hosts=192.168.12.49"
 
 - hosts: localhost
   connection: local
@@ -825,7 +824,7 @@
 ### Setup EG concerto database
   - name: Setup EG concerto database
     become: true
-    shell: cd /home/opensrf/repos/Evergreen && perl Open-ILS/src/support-scripts/eg_db_config --update-config --service all --create-database --create-schema --create-offline --user {{ database_user }} --password {{ database_password }} --hostname {{ database_host }} --port {{ database_port }} --database {{ database_database }} --admin-user {{ evergreen_global_admin }} --admin-pass {{ evergreen_global_admin_password }} --load-concerto-enhanced
+    shell: cd /home/opensrf/repos/Evergreen && perl Open-ILS/src/support-scripts/eg_db_config --update-config --service all --create-database --create-schema --create-offline --user {{ database_user }} --password {{ database_password }} --hostname {{ database_host }} --port {{ database_port }} --database {{ database_database }} --admin-user {{ evergreen_global_admin }} --admin-pass {{ evergreen_global_admin_password }} {{ database_sample_data_set }}
   - name: Download and make pgtap
     become: true
     become_user: postgres

@@ -9,7 +9,7 @@
 # This is tempermental. If you turn this setting on, you might end up having to manually edit the resulting installation
 # Particularly eg_vhost.conf
   add_evergreen_language_support: no
-# You can manually assign the Evergreen git branch, or let this regular expression figure it out based on evergreen_git_branch
+# You can manually assign the Evergreen git branch, or let this regular expression figure it out based on evergreen_version
   evergreen_git_branch: "{{ 'tags/rel_' + (evergreen_version|regex_replace('\\.', '_')) }}"
 
   evergreen_major_version: "{{evergreen_version|regex_replace('^(\\d*)\\..*$', '\\1') }}"
@@ -49,6 +49,9 @@
   database_port: 5432
   database_user: evergreen
   database_password: databasepassword
+# Enhanced concerto: --load-concerto-enhanced
+# Smaller concerto: --load-all-sample
+  database_sample_data_set: --load-concerto-enhanced
   evergreen_global_admin: admin
   evergreen_global_admin_password: demo123
   sender_address: no-reply@localhost.com

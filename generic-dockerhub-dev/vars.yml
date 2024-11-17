@@ -9,7 +9,7 @@
 # This is tempermental. If you turn this setting on, you might end up having to manually edit the resulting installation
 # Particularly eg_vhost.conf
   add_evergreen_language_support: no
-# You can manually assign the Evergreen git branch, or let this regular expression figure it out based on evergreen_git_branch
+# You can manually assign the Evergreen git branch, or let this regular expression figure it out based on evergreen_version
   evergreen_git_branch: main
 
   evergreen_major_version: "{{evergreen_version|regex_replace('^(\\d*)\\..*$', '\\1') }}"

@@ -1,5 +1,4 @@
 ---
-#ansible-playbook /mnt/evergreen/playbooks/restart_app_services.yml --private-key /home/user/.ssh/id_rsa -vvvv -e "hosts=192.168.12.49"
 
 - hosts: localhost
   connection: local
@@ -39,7 +38,7 @@
   - name: Adding user 'user' to group 'sudo'
     become: true
     user:
-      name: user 
+      name: user
       groups: sudo
       append: yes
 
@@ -49,7 +48,7 @@
 
   - name: Setting Timezone
     become: true
-    timezone: 
+    timezone:
       name: 'America/Chicago'
 
   - name: Chowning home directories
@@ -95,13 +94,13 @@
       PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
     shell: cd /home/opensrf/repos && cp {{evergreen_tarball}} . && tar zxvf *.tar.gz && mv {{evergreen_server_filename}} Evergreen
 
-  - name: OpenSRF Git Add remote
+  - name: OpenSRF Git Add working remote
     become: true
     become_user: opensrf
     shell: cd /home/opensrf/repos/OpenSRF && git remote add -f working git://git.evergreen-ils.org/working/OpenSRF.git
     ignore_errors: yes
 
-  - name: OpenSRF Git Add remote
+  - name: OpenSRF Git set push working remote
     become: true
     become_user: opensrf
     shell: cd /home/opensrf/repos/OpenSRF && git remote set-url --push working git@git.evergreen-ils.org:working/OpenSRF.git
@@ -149,7 +148,7 @@
     shell: cd /home/opensrf/repos/OpenSRF && git clean -x -f -d && git checkout main && git checkout {{opensrf_git_branch}} && export PERL_MM_USE_DEFAULT=1 && autoreconf -i && chown opensrf:opensrf -R /home/opensrf/repos/OpenSRF
     when: ubuntu_version|lower == 'xenial'
 
-### Installing OpenSRF from opensrf_git_branch 
+### Installing OpenSRF from opensrf_git_branch
   - name: Make Opensrf as opensrf
     become: true
     become_user: opensrf
@@ -205,12 +204,12 @@
     shell: ejabberdctl register router private.localhost {{ejabberd_password}} && ejabberdctl register opensrf private.localhost {{ejabberd_password}} && ejabberdctl register router public.localhost {{ejabberd_password}} && ejabberdctl register opensrf public.localhost {{ejabberd_password}}
     when: ubuntu_version|lower == 'bionic' or ubuntu_version|lower == 'focal' or ubuntu_version|lower == 'jammy'
 
-  - name: Setup ejabberd users as root (if xenial)
+  - name: Setup ejabberd users as root (if xenial) 1
     become: true
     shell: ejabberdctl unregister router private.localhost && ejabberdctl unregister opensrf private.localhost && ejabberdctl unregister router public.localhost && ejabberdctl unregister opensrf public.localhost
     when: ubuntu_version|lower == 'xenial'
 
-  - name: Setup ejabberd users as root (if xenial)
+  - name: Setup ejabberd users as root (if xenial) 2
     become: true
     shell: ejabberdctl register router private.localhost {{ejabberd_password}} && ejabberdctl register opensrf private.localhost {{ejabberd_password}} && ejabberdctl register router public.localhost {{ejabberd_password}} && ejabberdctl register opensrf public.localhost {{ejabberd_password}}
     when: ubuntu_version|lower == 'xenial'
@@ -259,19 +258,19 @@
     set_fact: switch_to_newer_version='yes'
     when: (ubuntu_version|lower == 'focal' or ubuntu_version|lower == 'bionic' or ubuntu_version|lower == 'jammy') and ( (evergreen_major_version|int == 3 and evergreen_minor_version|int < 6) or (evergreen_major_version|int < 3) )
 
-  - name: Setup Evergreen prerequisites 
+  - name: Setup Evergreen prerequisites 1
     become: true
     shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}
     when: switch_to_newer_version is defined
-  - name: Setup Evergreen prerequisites 2nd trip through
+  - name: Setup Evergreen prerequisites 2nd trip through 1
     become: true
     shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}
     when: switch_to_newer_version is defined
-  - name: Setup Evergreen developer packages
+  - name: Setup Evergreen developer packages 1
     become: true
     shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}-developer
     when: switch_to_newer_version is defined
-  - name: Setup Evergreen translator packages
+  - name: Setup Evergreen translator packages 1
     become: true
     shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}-translator
     when: switch_to_newer_version is defined
@@ -280,22 +279,22 @@
     shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install postgres-server-ubuntu-{{ ubuntu_version }}
     when: switch_to_newer_version is defined
 
-  - name: Setup Evergreen prerequisites 
+  - name: Setup Evergreen prerequisites 2
     become: true
     shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}
     when: switch_to_newer_version is not defined
 
-  - name: Setup Evergreen prerequisites 2nd trip through
+  - name: Setup Evergreen prerequisites 2nd trip through 2
     become: true
     shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}
     when: switch_to_newer_version is not defined
 
-  - name: Setup Evergreen developer packages
+  - name: Setup Evergreen developer packages 2
     become: true
     shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}-developer
     when: switch_to_newer_version is not defined
 
-  - name: Setup Evergreen translator packages
+  - name: Setup Evergreen translator packages 2
     become: true
     shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}-translator
     when: switch_to_newer_version is not defined
@@ -346,7 +345,7 @@
     become_user: opensrf
     ignore_errors: yes
     shell: cd /home/opensrf/repos/Evergreen/build/i18n && mkdir locale && make newpot && make LOCALE=fr-CA updatepo && make LOCALE=es-ES updatepo && make LOCALE=cs-CZ updatepo && make LOCALE=ar-JO updatepo && make LOCALE=fr-CA install && make LOCALE=es-ES install && make LOCALE=cs-CZ install && make LOCALE=ar-JO install
-    when: evergreen_major_version|int > 2 and evergreen_minor_version|int > 5
+    when: evergreen_major_version|int > 2 and evergreen_minor_version|int > 5 and add_evergreen_language_support|bool == true
 
   - name: starting postgres
     ignore_errors: yes
@@ -447,7 +446,7 @@
       state: absent
     when: install_xul_client|bool == true
 
-  - name: Setup Symlink {{openils_path}}/var/web/xul/server
+  - name: Setup server link
     become: true
     shell: cd {{openils_path}}/var/web/xul && ln -sf {{evergreen_stamp_id}}/server server && chown -R opensrf:opensrf {{openils_path}}
     when: install_xul_client|bool == true
@@ -460,9 +459,9 @@
   - name: Dojoify
     become: true
     become_user: opensrf
-    shell: cd /home/opensrf && wget http://download.dojotoolkit.org/release-1.3.3/dojo-release-1.3.3.tar.gz && tar -C {{openils_path}}/var/web/js -xzf dojo-release-1.3.3.tar.gz && cp -r {{openils_path}}/var/web/js/dojo-release-1.3.3/* {{openils_path}}/var/web/js/dojo/.
+    shell: cd /home/opensrf && wget https://download.dojotoolkit.org/release-1.3.3/dojo-release-1.3.3.tar.gz && tar -C {{openils_path}}/var/web/js -xzf dojo-release-1.3.3.tar.gz && cp -r {{openils_path}}/var/web/js/dojo-release-1.3.3/* {{openils_path}}/var/web/js/dojo/.
 
-  - name: register apache directory
+  - name: register apache directory non2.4
     set_fact: apache_folder='apache'
 
 ### Evergreen moved the eg_startup file from "apache" to apache_24 starting at Evergreen 3.2
@@ -583,7 +582,7 @@
   - lineinfile:
       dest: /etc/apache2/eg_vhost.conf
       insertafter: . sample staff-specific translation files
-      line: PerlAddVar OILSWebLocale "{{openils_path}}/var/data/locale/staff/fr-CA.po"
+      line: PerlAddVar OILSWebLocale "/openils/var/data/locale/staff/fr-CA.po"
     when: add_evergreen_language_support|bool == true
 
   - lineinfile:
@@ -647,10 +646,10 @@
     - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<user>postgres</user>' line='<user>{{database_user}}</user>'"
     - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<user>postgres</user>' line='<user>{{database_user}}</user>'"
 ## update ALL of the database password lines
-    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<pw>postgres</pw>' line='<pw>{{database_password}}</pw>'"  
-    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<pw>postgres</pw>' line='<pw>{{database_password}}</pw>'"  
-    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<pw>postgres</pw>' line='<pw>{{database_password}}</pw>'"  
-    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<pw>postgres</pw>' line='<pw>{{database_password}}</pw>'"  
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<pw>postgres</pw>' line='<pw>{{database_password}}</pw>'"
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<pw>postgres</pw>' line='<pw>{{database_password}}</pw>'"
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<pw>postgres</pw>' line='<pw>{{database_password}}</pw>'"
+    - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<pw>postgres</pw>' line='<pw>{{database_password}}</pw>'"
     - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<pw>postgres</pw>' line='<pw>{{database_password}}</pw>'"
     - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<pw>postgres</pw>' line='<pw>{{database_password}}</pw>'"
     - lineinfile: "dest={{openils_path}}/conf/opensrf.xml state=present regexp='<pw>postgres</pw>' line='<pw>{{database_password}}</pw>'"
@@ -735,12 +734,12 @@
     become: true
     become_user: opensrf
     shell: cd /opt && git clone git://git.evergreen-ils.org/SIPServer.git SIPServer
-  - name: Git SIPServer Add remote
+  - name: Git SIPServer Add working remote
     become: true
     become_user: opensrf
-    shell: cd /opt/SIPServer && git remote add working git://git.evergreen-ils.org/working/SIPServer.git 
+    shell: cd /opt/SIPServer && git remote add working git://git.evergreen-ils.org/working/SIPServer.git
     ignore_errors: yes
-  - name: Git SIPServer Add remote
+  - name: Git SIPServer set working remote
     become: true
     become_user: opensrf
     shell: cd /opt/SIPServer && git remote set-url --push working git@git.evergreen-ils.org:working/SIPServer.git
@@ -752,7 +751,7 @@
   - name: Git SIPServer Checkout the "Good" Branch
     become: true
     become_user: opensrf
-    shell: cd /opt/SIPServer && git reset --hard && git config --global user.email "just_need_to_satisfy_git@yoyo.com" && git config --global user.name "checkoutuser" 
+    shell: cd /opt/SIPServer && git reset --hard && git config --global user.email "just_need_to_satisfy_git@yoyo.com" && git config --global user.name "checkoutuser"
   - name: Git SIPServer Cherry pick loop
     become: true
     become_user: opensrf
@@ -779,7 +778,7 @@
     become: true
     shell: cd /home/opensrf/repos/Evergreen/Open-ILS/xul/staff_client && make clean && make AUTOUPDATE_HOST={{domain_name}} STAFF_CLIENT_STAMP_ID={{evergreen_stamp_id}} STAFF_CLIENT_BUILD_ID={{evergreen_stamp_id}} rigrelease install && make updates-client
     when: install_xul_client|bool == true
-  - name: Setup Symlink {{openils_path}}/var/web/xul/server
+  - name: Setup Symlink server link 2nd
     become: true
     shell: cd {{openils_path}}/var/web/xul && ln -sf {{evergreen_stamp_id}}/server server && chown -R opensrf:opensrf {{openils_path}}
     when: install_xul_client|bool == true
@@ -793,7 +792,7 @@
 ### Setup EG concerto database
   - name: Setup EG concerto database
     become: true
-    shell: cd /home/opensrf/repos/Evergreen && perl Open-ILS/src/support-scripts/eg_db_config --update-config --service all --create-database --create-schema --create-offline --user {{ database_user }} --password {{ database_password }} --hostname {{ database_host }} --port {{ database_port }} --database {{ database_database }} --admin-user {{ evergreen_global_admin }} --admin-pass {{ evergreen_global_admin_password }} --load-concerto-enhanced
+    shell: cd /home/opensrf/repos/Evergreen && perl Open-ILS/src/support-scripts/eg_db_config --update-config --service all --create-database --create-schema --create-offline --user {{ database_user }} --password {{ database_password }} --hostname {{ database_host }} --port {{ database_port }} --database {{ database_database }} --admin-user {{ evergreen_global_admin }} --admin-pass {{ evergreen_global_admin_password }} {{ database_sample_data_set }}
   - name: Download and make pgtap
     become: true
     become_user: postgres
@@ -838,7 +837,7 @@
   - name: removing prefixed spaces /etc/apt/preferences.d/mozilla
     ignore_errors: yes
     become: true
-    replace: 
+    replace:
       path: /etc/apt/preferences.d/mozilla
       regexp: '^\s*(.*)$'
       replace: \1

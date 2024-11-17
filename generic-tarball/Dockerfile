@@ -16,10 +16,16 @@ ENV DEBIAN_FRONTEND noninteractive
 ENV TZ=America/New_York
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 RUN apt-get update && apt-get install -y --no-install-recommends apt-utils
-RUN apt-get -y install syslog-ng-core sendmail mailutils sendmail-bin logrotate ssh net-tools iputils-ping sudo nano make autoconf libtool git mlocate ansible git-core ntp cron screen rsync curl vim
+
+RUN apt-get -y install ansible 
+RUN mkdir /egconfigs
+ADD vars.yml /egconfigs/vars.yml
+ADD test_vars.yml /egconfigs/test_vars.yml
+RUN cd /egconfigs && ansible-playbook test_vars.yml -v
+
+RUN apt-get -y install syslog-ng-core sendmail mailutils sendmail-bin logrotate ssh net-tools iputils-ping sudo nano make autoconf libtool git mlocate git-core ntp cron screen rsync curl vim
 RUN if [ $os != "xenial"] ; then dpkg-reconfigure --frontend noninteractive tzdata ; fi
 
-RUN mkdir /egconfigs
 RUN mkdir -p /mnt/evergreen
 
 # Run dockerbase script
@@ -45,7 +51,6 @@ ADD ejabberd_xenial.yml /egconfigs/ejabberd_xenial.yml
 
 ADD logrotate_evergreen.txt /egconfigs/logrotate_evergreen.txt
 COPY *.tar.gz /egconfigs/
-ADD vars.yml /egconfigs/vars.yml
 ADD install_evergreen.yml /egconfigs/install_evergreen.yml
 ADD evergreen_restart_services.yml /egconfigs/evergreen_restart_services.yml
 ADD restart_post_boot.yml /egconfigs/restart_post_boot.yml
