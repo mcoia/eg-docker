@@ -213,6 +213,19 @@
 # # ### OPENSRF IS FINISHED
 
 ### STARTING EVERGREEN SECTION
+  - name: Evergreen Git Add working remote
+    become: true
+    become_user: opensrf
+    shell: cd /home/opensrf/repos/Evergreen && git remote add -f working git://git.evergreen-ils.org/working/Evergreen.git
+    ignore_errors: yes
+    when: Evergreen_cherry_picks|length > 0
+
+  - name: Evergreen Git set working remote
+    become: true
+    become_user: opensrf
+    shell: cd /home/opensrf/repos/Evergreen && git remote set-url --push working git@git.evergreen-ils.org:working/Evergreen.git
+    ignore_errors: yes
+    when: Evergreen_cherry_picks|length > 0
 
 ### if you chose bionic but Evergreen version < 3.3, then we need to install this step with a newer version of evergreen
   - name: register special case
