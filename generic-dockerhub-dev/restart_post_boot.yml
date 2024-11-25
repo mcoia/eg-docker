@@ -89,19 +89,28 @@
     shell: export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/osrf_control -l --reset-message-bus
 
 ## we need to copy the incoming Evergreen repo into a local folder because Windows/Linux symlinks don't work together
-  - name: Delete folder /home/opensrf/repos/Evergreen-build/Open-ILS/src/perlmods/lib/OpenILS
+  - name: Delete perl and c-apps build directories
     file:
-      path: /home/opensrf/repos/Evergreen-build/Open-ILS/src/perlmods/lib/OpenILS
+      path: "{{ item }}"
       state: absent
+    loop:
+      - "/home/opensrf/repos/Evergreen-build/Open-ILS/src/perlmods/lib/OpenILS"
+      - "/home/opensrf/repos/Evergreen-build/Open-ILS/src/c-apps"
+
   - name: rsync /home/opensrf/repos/Evergreen/Open-ILS/src/perlmods/lib/OpenILS -> /home/opensrf/repos/Evergreen-build/Open-ILS/src/perlmods/lib/OpenILS
     become: true
     ignore_errors: yes
     shell: rsync -a --exclude ".git" --exclude "node_modules" --no-owner --no-perms --size-only --chown 0:0 /home/opensrf/repos/Evergreen/Open-ILS/src/perlmods/lib/OpenILS/ /home/opensrf/repos/Evergreen-build/Open-ILS/src/perlmods/lib/OpenILS
 
+  - name: rsync /home/opensrf/repos/Evergreen/Open-ILS/src/c-apps -> /home/opensrf/repos/Evergreen-build/Open-ILS/src/c-apps
+    become: true
+    ignore_errors: yes
+    shell: rsync -a --exclude ".git" --exclude "node_modules" --no-owner --no-perms --size-only --chown 0:0 /home/opensrf/repos/Evergreen/Open-ILS/src/c-apps/ /home/opensrf/repos/Evergreen-build/Open-ILS/src/c-apps
+
   - name: Put the fm_IDL.xml in conf folder
     become: true
     ignore_errors: yes
-    copy: 
+    copy:
       owner: opensrf
       group: opensrf
       mode: 0644
@@ -111,16 +120,20 @@
   - name: Put the fm_IDL.xml in reports folder
     become: true
     ignore_errors: yes
-    copy: 
+    copy:
       owner: opensrf
       group: opensrf
       mode: 0644
       src: /home/opensrf/repos/Evergreen/Open-ILS/examples/fm_IDL.xml
       dest: /openils/var/web/reports/fm_IDL.xml
 
-  - name: Configuring Evergreen code and make (for perl changes)
+  - name: Configuring Evergreen code and make (for perl and C changes)
     become: true
     shell: cd /home/opensrf/repos/Evergreen-build && PATH={{openils_path}}/bin:$PATH ./configure --prefix={{openils_path}} --sysconfdir={{openils_path}}/conf && make
+
+  - name: make install C changes
+    become: true
+    shell: cd /home/opensrf/repos/Evergreen-build/Open-ILS/src/c-apps && make install
 
   - name: Start OpenSRF
     become: true
