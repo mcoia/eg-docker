@@ -929,4 +929,11 @@
     become: true
     when: install_rust|bool == true
     shell: cd /home/opensrf/repos/evergreen-universe-rs && make install-bin
+  - name: allow opensrf to psql without password
+    become: true
+    become_user: opensrf
+    copy:
+      mode: '0600'
+      dest: "/home/opensrf/.pgpass"
+      content: "{{ database_host }}:{{ database_port }}:{{ database_database }}:{{ database_user }}:{{ database_password }}"
 ...
