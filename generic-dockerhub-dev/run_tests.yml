@@ -13,23 +13,37 @@
     environment:
       PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
     shell: export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/osrf_control --localhost --stop-all
-    tags: perl,angular,pgtap
+    tags: angular,pgtap
   - name: Setup | Reload a fresh copy of the concerto dataset
     become: true
     shell: cd /home/opensrf/repos/Evergreen && perl Open-ILS/src/support-scripts/eg_db_config --update-config --service all --create-database --create-schema --create-offline --user {{ database_user }} --password {{ database_password }} --hostname {{ database_host }} --port {{ database_port }} --database {{ database_database }} --admin-user {{ evergreen_global_admin }} --admin-pass {{ evergreen_global_admin_password }} --load-all-sample
-    tags: perl,angular,pgtap
+    tags: angular,pgtap
   - name: Setup | Start OpenSRF
     become: true
     become_user: opensrf
     environment:
       PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
     shell: export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/osrf_control --localhost --start-all
-    tags: perl,angular,pgtap
+    tags: angular,pgtap
   - name: Setup | Install Firefox
     become: true
     apt:
-      name: firefox
+      name: firefox-nightly
+      update_cache: true
     tags: angularjs,angular,opac
+  - name: Setup | Symlink firefox to the firefox-nightly we got from mozilla
+    become: true
+    file:
+      state: link
+      src: /usr/bin/firefox-nightly
+      dest: /usr/bin/firefox
+    tags: angularjs,angular,opac
+  - name: Setup | Give evergreen user access to opensrf directories
+    user:
+      name: evergreen
+      groups: opensrf
+      append: yes
+    tags: pgtap
   - name: Setup | Activate pgtap extension
     become: true
     become_user: evergreen
@@ -55,14 +69,12 @@
     tags: pgtap
   - name: Test | Run AngularJS unit tests
     become: true
-    become_user: opensrf
-    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/web/js/ui/default/staff && npm run test
+    shell: cd /home/opensrf/repos/Evergreen-build/Open-ILS/web/js/ui/default/staff && npm run test
     ignore_errors: true
     tags: angularjs
   - name: Test | Run Angular unit tests
     become: true
-    become_user: opensrf
-    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/src/eg2 && npm run test
+    shell: cd /home/opensrf/repos/Evergreen-build/Open-ILS/src/eg2 && npm run test
     ignore_errors: true
     tags: angular
   - name: Test | Run Angular e2e tests
@@ -76,25 +88,40 @@
   - name: Test | Run OPAC js unit tests
     become: true
     become_user: opensrf
-    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/web/opac/deps && npm run test
+    shell: cd /home/opensrf/repos/Evergreen-build/Open-ILS/web/opac/deps && npm run test
     ignore_errors: true
     tags: opac
-  - name: Test | Run Perl unit tests
+  - name: Perl Live Test Setup | Stop OpenSRF
     become: true
     become_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/osrf_control --localhost --stop-all
+    tags: perl
+  - name: Perl Live Test Setup | Reload a fresh copy of the concerto dataset
+    become: true
+    shell: cd /home/opensrf/repos/Evergreen && perl Open-ILS/src/support-scripts/eg_db_config --update-config --service all --create-database --create-schema --create-offline --user {{ database_user }} --password {{ database_password }} --hostname {{ database_host }} --port {{ database_port }} --database {{ database_database }} --admin-user {{ evergreen_global_admin }} --admin-pass {{ evergreen_global_admin_password }} --load-all-sample
+    tags: perl
+  - name: Perl Live Test Setup | Start OpenSRF
+    become: true
+    become_user: opensrf
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
+    shell: export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/osrf_control --localhost --start-all
+    tags: perl
+  - name: Test | Run Perl unit tests
+    become: true
     shell: cd /home/opensrf/repos/Evergreen && make check
     ignore_errors: true
     tags: perl
   - name: Test | Run Perl live tests
     become: true
-    become_user: opensrf
     shell: cd /home/opensrf/repos/Evergreen/Open-ILS/src/perlmods && make livecheck
     ignore_errors: true
     tags: perl
   - name: Test | Run C unit tests
     become: true
-    become_user: opensrf
-    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/src/c-apps/tests && make check
+    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/src/c-apps && make check
     ignore_errors: true
     tags: c
   - name: Teardown | Stop OpenSRF
