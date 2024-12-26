@@ -571,6 +571,16 @@
                       ansible-playbook /egconfigs/restart_post_boot.yml -v -e "hosts=127.0.0.1" &> "$CHECKFILE"_screenoutput
                   fi
 
+                  CHECKFILE=/home/opensrf/repos/Evergreen/eg_run_tests
+                  if test -f "$CHECKFILE"; then
+                      TEST_TAGS=$(cat $CHECKFILE)
+                      if [ -n "$TEST_TAGS" ]; then
+                          TEST_TAGS="-t $TEST_TAGS"
+                      fi
+                      rm $CHECKFILE
+                      ansible-playbook /egconfigs/run_tests.yml $TEST_TAGS -v  &> "$CHECKFILE"_screenoutput
+                  fi
+
                   CHECKFILE=/home/opensrf/repos/Evergreen/db_switch_LOCK
                   if [ ! -f "$CHECKFILE" ]; then
                       /egconfigs/db_switcher.pl >>/home/opensrf/repos/Evergreen/db_switch.log 2>&1
