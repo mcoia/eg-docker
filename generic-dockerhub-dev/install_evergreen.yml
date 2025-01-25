@@ -381,7 +381,7 @@
   - name: Setting up npm
     become: true
     become_user: opensrf
-    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/web/js/ui/default/staff/ && npm install
+    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/web/js/ui/default/staff/ && npm ci
     environment:
       CHROME_BIN: /usr/bin/chromium-browser
 
@@ -422,13 +422,13 @@
   - name: Setting up eg2 for EG version 3.2 and above
     become: true
     become_user: opensrf
-    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/src/eg2/ && npm install && {{ angular_build_command }}
+    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/src/eg2/ && npm ci && {{ angular_build_command }}
     when: evergreen_major_version|int > 2 and evergreen_minor_version|int > 1
 
   - name: Setting up bootstrap opac for EG 3.6 and above
     become: true
     become_user: opensrf
-    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/web/opac/deps/ && npm install
+    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/web/opac/deps/ && npm ci
     when: evergreen_major_version|int > 2 and evergreen_minor_version|int > 5
 
   - name: Configuring Evergreen code and make

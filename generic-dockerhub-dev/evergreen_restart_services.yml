@@ -234,7 +234,7 @@
 
   - name: Setting up npm (on local build copy)
     become: true
-    shell: cd /home/opensrf/repos/Evergreen-build/Open-ILS/web/js/ui/default/staff/ && npm install
+    shell: cd /home/opensrf/repos/Evergreen-build/Open-ILS/web/js/ui/default/staff/ && npm ci
     environment:
       CHROME_BIN: /usr/bin/chromium-browser
 
@@ -254,12 +254,12 @@
   - name: Setting up eg2 for EG version 3.2 and above (on local build copy)
     become: true
     ignore_errors: yes
-    shell: cd /home/opensrf/repos/Evergreen-build/Open-ILS/src/eg2/ && rm -Rf node_modules; npm install
+    shell: cd /home/opensrf/repos/Evergreen-build/Open-ILS/src/eg2/ && rm -Rf node_modules; npm ci
     when: evergreen_major_version|int > 2 and evergreen_minor_version|int > 1
 
   - name: Setting up bootstrap opac for EG 3.6 and above
     become: true
-    shell: cd /home/opensrf/repos/Evergreen-build/Open-ILS/web/opac/deps/ && npm install && rsync -L -a --no-owner --no-perms --size-only /home/opensrf/repos/Evergreen-build/Open-ILS/web/opac/deps/ /home/opensrf/repos/Evergreen/Open-ILS/web/opac/deps
+    shell: cd /home/opensrf/repos/Evergreen-build/Open-ILS/web/opac/deps/ && npm ci && rsync -L -a --no-owner --no-perms --size-only /home/opensrf/repos/Evergreen-build/Open-ILS/web/opac/deps/ /home/opensrf/repos/Evergreen/Open-ILS/web/opac/deps
     when: evergreen_major_version|int > 2 and evergreen_minor_version|int > 5
 
   - name: make clean Evergreen
