@@ -1,0 +1,58 @@
+---
+# A playbook that you can use to performance profile a single pl/pgsql function
+# 
+# Usage:
+# ansible-playbook /egconfigs/plprofiler.yml -e="command='SELECT * FROM asset.opac_ou_record_copy_count(7, 244)'" -e iterations=500
+# ansible-playbook /egconfigs/plprofiler.yml -e="command='SELECT unapi.memoize( \'bre\', 1,\'mods32\',\'\',\'{holdings_xml,acp}\'::TEXT[], \'SYS1\')'" # note that the single quotes in your query need to be escaped
+#
+# You can then ls /home/evergreen/profile* and docker cp the profile file to your host machine,
+# then open it in your favorite browser
+
+- hosts: localhost
+  connection: local
+  remote_user: user
+  become_method: sudo
+  vars:
+    command: "SELECT unapi.bre(216,'holdings_xml','record','{}'::TEXT[], 'BR1')"
+    iterations: 100
+  vars_files:
+    - vars.yml
+  tasks:
+  - name: Install | install pip
+    become: true
+    apt:
+      name: python3-pip
+  - name: Install | install client
+    become: true
+    environment:
+      PATH: "/usr/lib/postgresql/{{ postgres_version }}/bin:{{ lookup('env', 'PATH') }}"
+    pip:
+      name:
+        - plprofiler-client
+        - psycopg2-binary
+  - name: Install | clone repo
+    become: true
+    become_user: opensrf
+    git:
+      repo: 'https://github.com/bigsql/plprofiler.git'
+      dest: /home/opensrf/repos/plprofiler
+  - name: Install | make install
+    become: true
+    environment:
+      USE_PGXS: 1
+      PATH: "/usr/lib/postgresql/{{ postgres_version }}/bin:{{ lookup('env', 'PATH') }}"
+    shell: 
+      cmd: make install
+      chdir: /home/opensrf/repos/plprofiler
+  - name: Install | Create extension
+    become: true
+    become_user: evergreen
+    shell: 'psql -c "CREATE EXTENSION IF NOT EXISTS plprofiler"'
+  - name: Profile | Profile command
+    become: true
+    become_user: evergreen
+    shell:
+      cmd: >
+            plprofiler run --command "{% for number in range(0, iterations|int) %}{{ command }};{% endfor %}" --output="profile-$(date +'%Y-%m-%d:%H:%M:%S')" --name="My profile" --title="My profile" --desc="Profile"
+      chdir: /home/evergreen
+...
