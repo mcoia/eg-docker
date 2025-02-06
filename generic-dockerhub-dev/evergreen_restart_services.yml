@@ -631,28 +631,28 @@
     when: ubuntu_version|lower == 'jammy'
 
 ## now, we need to make symlinks back to the Evergreen repository folder
-## {{openils_path}}/var/web/js/ui/default/staff
-  - name: Check {{openils_path}}/var/web/js/ui/default/staff folder for existing symlink
+## {{openils_path}}/var/web/js/ui/default
+  - name: Check {{openils_path}}/var/web/js/ui/default folder for existing symlink
     become: true
     stat:
-      path: "{{openils_path}}/var/web/js/ui/default/staff"
+      path: "{{openils_path}}/var/web/js/ui/default"
     register: symcheck
-  - name: Delete {{openils_path}}/var/web/js/ui/default/staff if it's not a symlink
+  - name: Delete {{openils_path}}/var/web/js/ui/default if it's not a symlink
     become: true
     ignore_errors: yes
     file:
-      path: "{{openils_path}}/var/web/js/ui/default/staff"
+      path: "{{openils_path}}/var/web/js/ui/default"
       state: absent
     when: symcheck is defined and (symcheck.stat.islnk is not defined or symcheck.stat.islnk == false)
-  - name: Create {{openils_path}}/var/web/js/ui/default/staff Symlink
+  - name: Create {{openils_path}}/var/web/js/ui/default Symlink
     become: true
     become_user: opensrf
     ignore_errors: yes
     file:
       force: yes
       state: link
-      src: "/home/opensrf/repos/Evergreen/Open-ILS/web/js/ui/default/staff"
-      dest: "{{openils_path}}/var/web/js/ui/default/staff"
+      src: "/home/opensrf/repos/Evergreen/Open-ILS/web/js/ui/default"
+      dest: "{{openils_path}}/var/web/js/ui/default"
 
 ## {{openils_path}}/var/web/eg2
   - name: Check {{openils_path}}/var/web/eg2 folder for existing symlink
