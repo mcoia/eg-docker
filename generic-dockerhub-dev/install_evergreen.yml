@@ -910,21 +910,25 @@
       path: /etc/apt/preferences.d/mozilla
       regexp: '^\s*(.*)$'
       replace: \1
-  - name: setup Rust prerequisites
+  - name: Check if rustup is installed
     become: true
+    become_user: opensrf
+    ansible.builtin.command:
+      cmd: which rustup
+    register: rustup_exists
+    changed_when: false
+    ignore_errors: true
     when: install_rust|bool == true
-    apt:
-      state: present
-      pkg:
-      - build-essential
-      - pkg-config
-      - libssl-dev
-      - rust-all
+  - name: Install rustup for the opensrf user
+    become: true
+    become_user: opensrf
+    when: install_rust|bool == true and 1 == rustup_exists.rc
+    shell: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
   - name: clone and build the Evergreen Universe Rust project
     become: true
     become_user: opensrf
     when: install_rust|bool == true
-    shell: cd /home/opensrf/repos && git clone https://github.com/kcls/evergreen-universe-rs && cd evergreen-universe-rs && make build
+    shell: . /home/opensrf/.cargo/env && cd /home/opensrf/repos && git clone https://github.com/kcls/evergreen-universe-rs && cd evergreen-universe-rs && make build
   - name: install the Evergreen Universe Rust project
     become: true
     when: install_rust|bool == true
