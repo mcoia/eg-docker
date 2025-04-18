@@ -13,31 +13,31 @@
     environment:
       PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
     shell: export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/osrf_control --localhost --stop-all
-    tags: angular,pgtap
+    tags: angular,angular-e2e,pgtap
   - name: Setup | Reload a fresh copy of the concerto dataset
     become: true
     shell: cd /home/opensrf/repos/Evergreen && perl Open-ILS/src/support-scripts/eg_db_config --update-config --service all --create-database --create-schema --create-offline --user {{ database_user }} --password {{ database_password }} --hostname {{ database_host }} --port {{ database_port }} --database {{ database_database }} --admin-user {{ evergreen_global_admin }} --admin-pass {{ evergreen_global_admin_password }} --load-all-sample
-    tags: angular,pgtap
+    tags: angular,angular-e2e,pgtap
   - name: Setup | Start OpenSRF
     become: true
     become_user: opensrf
     environment:
       PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
     shell: export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/osrf_control --localhost --start-all
-    tags: angular,pgtap
+    tags: angular,angular-e2e,pgtap
   - name: Setup | Install Firefox
     become: true
     apt:
       name: firefox-nightly
       update_cache: true
-    tags: angularjs,angular,opac
+    tags: angularjs,angular,angular-unit,angular-e2e,opac
   - name: Setup | Symlink firefox to the firefox-nightly we got from mozilla
     become: true
     file:
       state: link
       src: /usr/bin/firefox-nightly
       dest: /usr/bin/firefox
-    tags: angularjs,angular,opac
+    tags: angularjs,angular,angular-unit,angular-e2e,opac
   - name: Setup | Give evergreen user access to opensrf directories
     user:
       name: evergreen
@@ -76,7 +76,7 @@
     become: true
     shell: cd /home/opensrf/repos/Evergreen-build/Open-ILS/src/eg2 && npm run test
     ignore_errors: true
-    tags: angular
+    tags: angular,angular-unit
   - name: Test | Run Angular e2e tests
     become: true
     become_user: opensrf
@@ -84,7 +84,7 @@
       MOZ_HEADLESS: 1
     shell: cd /home/opensrf/repos/Evergreen/Open-ILS/src/eg2 && ng e2e
     ignore_errors: true
-    tags: angular
+    tags: angular,angular-e2e
   - name: Test | Run OPAC js unit tests
     become: true
     become_user: opensrf
@@ -130,16 +130,16 @@
     environment:
       PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
     shell: export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/osrf_control --localhost --stop-all
-    tags: perl,angular,pgtap
+    tags: perl,angular,angular-e2e,pgtap
   - name: Teardown | Reload a fresh copy of the concerto dataset
     become: true
     shell: cd /home/opensrf/repos/Evergreen && perl Open-ILS/src/support-scripts/eg_db_config --update-config --service all --create-database --create-schema --create-offline --user {{ database_user }} --password {{ database_password }} --hostname {{ database_host }} --port {{ database_port }} --database {{ database_database }} --admin-user {{ evergreen_global_admin }} --admin-pass {{ evergreen_global_admin_password }} --load-all-sample
-    tags: perl,angular,pgtap
+    tags: perl,angular,angular-e2e,pgtap
   - name: Teardown | Start OpenSRF
     become: true
     become_user: opensrf
     environment:
       PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
     shell: export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/osrf_control --localhost --start-all
-    tags: perl,angular,pgtap
+    tags: perl,angular,angular-e2e,pgtap
 ...
