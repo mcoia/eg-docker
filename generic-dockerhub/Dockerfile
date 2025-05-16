@@ -11,19 +11,19 @@ EXPOSE 6001
 RUN useradd user -m -s /bin/bash
 RUN useradd opensrf -m -s /bin/bash
 RUN useradd evergreen -m -s /bin/bash
-RUN apt-get update
+RUN apt-get update -qq
 ENV DEBIAN_FRONTEND noninteractive
 ENV TZ=America/New_York
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
-RUN apt-get update && apt-get install -y --no-install-recommends apt-utils
+RUN apt-get update -qq && apt-get install -qq -y --no-install-recommends apt-utils
 
-RUN apt-get -y install ansible 
+RUN apt-get -qq -y install ansible
 RUN mkdir /egconfigs
 ADD vars.yml /egconfigs/vars.yml
 ADD test_vars.yml /egconfigs/test_vars.yml
 RUN cd /egconfigs && ansible-playbook test_vars.yml -v
 
-RUN apt-get -y install syslog-ng-core sendmail mailutils sendmail-bin logrotate ssh net-tools iputils-ping sudo nano make autoconf libtool git mlocate git-core ntp cron screen rsync curl vim
+RUN apt-get -qq -y install syslog-ng-core sendmail mailutils sendmail-bin logrotate ssh net-tools iputils-ping sudo nano make autoconf libtool git mlocate git-core ntp cron screen rsync curl vim
 RUN if [ $os != "xenial"] ; then dpkg-reconfigure --frontend noninteractive tzdata ; fi
 
 RUN mkdir -p /mnt/evergreen
