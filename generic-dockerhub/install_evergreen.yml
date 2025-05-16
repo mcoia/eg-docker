@@ -84,7 +84,7 @@
     become_user: opensrf
     environment:
       PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
-    shell: cd /home/opensrf/repos && git clone git://git.evergreen-ils.org/OpenSRF.git
+    shell: cd /home/opensrf/repos && git clone -q git://git.evergreen-ils.org/OpenSRF.git
 
   - name: clone Evergreen repo
     when: evergreengit.stat.isdir is not defined
@@ -92,12 +92,12 @@
     become_user: opensrf
     environment:
       PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
-    shell: cd /home/opensrf/repos && git clone git://git.evergreen-ils.org/Evergreen.git
+    shell: cd /home/opensrf/repos && git clone -q git://git.evergreen-ils.org/Evergreen.git
 
   - name: OpenSRF Git Add working remote
     become: true
     become_user: opensrf
-    shell: cd /home/opensrf/repos/OpenSRF && git remote add -f working git://git.evergreen-ils.org/working/OpenSRF.git
+    shell: cd /home/opensrf/repos/OpenSRF && git remote add working git://git.evergreen-ils.org/working/OpenSRF.git && git fetch -q working
     ignore_errors: yes
 
   - name: OpenSRF Git set push working remote
@@ -109,7 +109,7 @@
   - name: OpenSRF Checkout Branch
     become: true
     become_user: opensrf
-    shell: cd /home/opensrf/repos/OpenSRF && git fetch --all && git pull && git checkout {{opensrf_git_branch}}
+    shell: cd /home/opensrf/repos/OpenSRF && git fetch -q --all && git pull -q && git checkout {{opensrf_git_branch}}
 
   - name: OpenSRF Git Cherry pick loop Debug
     become: true
@@ -141,7 +141,7 @@
 
   - name: Install OpenSRF prereqs
     become: true
-    shell: apt-get update && cd /home/opensrf/repos/OpenSRF && export PERL_MM_USE_DEFAULT=1 && autoreconf -i && make -f src/extras/Makefile.install ubuntu-{{ ubuntu_version|lower }} && chown opensrf:opensrf -R .
+    shell: apt-get -q update && cd /home/opensrf/repos/OpenSRF && export PERL_MM_USE_DEFAULT=1 && autoreconf -i && make -f src/extras/Makefile.install ubuntu-{{ ubuntu_version|lower }} && chown opensrf:opensrf -R .
 
   - name: Switch OpenSRF branch back to desired version
     become: true
@@ -243,11 +243,11 @@
 
   - name: Download websocketsd
     become: true
-    shell: "cd /tmp && wget https://github.com/joewalnes/websocketd/releases/download/v{{ websocketd_version }}/{{ websocketd_filename }}"
+    shell: "cd /tmp && wget -q https://github.com/joewalnes/websocketd/releases/download/v{{ websocketd_version }}/{{ websocketd_filename }}"
 
   - name: Unzip Websockets
     become: true
-    shell: "cd /tmp && unzip -u {{ websocketd_filename }} && cp websocketd /usr/local/bin/"
+    shell: "cd /tmp && unzip -q -u {{ websocketd_filename }} && cp websocketd /usr/local/bin/"
 
 # # ### OPENSRF IS FINISHED
 
@@ -255,7 +255,7 @@
   - name: Evergreen Git Add working remote
     become: true
     become_user: opensrf
-    shell: cd /home/opensrf/repos/Evergreen && git remote add -f working git://git.evergreen-ils.org/working/Evergreen.git
+    shell: cd /home/opensrf/repos/Evergreen && git remote add working git://git.evergreen-ils.org/working/Evergreen.git && git fetch -q working
     ignore_errors: yes
 
   - name: Evergreen Git set working remote
@@ -272,7 +272,7 @@
   - name: Evergreen Git fetch all 1
     become: true
     become_user: opensrf
-    shell: cd /home/opensrf/repos/Evergreen && git reset --hard && git checkout tags/rel_3_6_0 && git fetch --all && git pull
+    shell: cd /home/opensrf/repos/Evergreen && git reset --hard && git checkout tags/rel_3_6_0 && git fetch -q --all && git pull
     when: switch_to_newer_version is defined
   - name: Setup Evergreen prerequisites 1
     become: true
@@ -298,7 +298,7 @@
   - name: Evergreen Git fetch all 2
     become: true
     become_user: opensrf
-    shell: cd /home/opensrf/repos/Evergreen && git clean -x -f -d && git checkout {{evergreen_git_branch}} && git fetch --all && git pull && git config --global user.email "just_need_to_satisfy_git@yoyo.com" && git config --global user.name "checkoutuser"
+    shell: cd /home/opensrf/repos/Evergreen && git clean -x -f -d && git checkout {{evergreen_git_branch}} && git fetch -q --all && git pull -q && git config --global user.email "just_need_to_satisfy_git@yoyo.com" && git config --global user.name "checkoutuser"
 
   - name: Evergreen Git Cherry pick loop Debug
     become: true
@@ -491,7 +491,7 @@
   - name: Dojoify
     become: true
     become_user: opensrf
-    shell: cd /home/opensrf && wget https://download.dojotoolkit.org/release-1.3.3/dojo-release-1.3.3.tar.gz && tar -C {{openils_path}}/var/web/js -xzf dojo-release-1.3.3.tar.gz && cp -r {{openils_path}}/var/web/js/dojo-release-1.3.3/* {{openils_path}}/var/web/js/dojo/.
+    shell: cd /home/opensrf && wget -q https://download.dojotoolkit.org/release-1.3.3/dojo-release-1.3.3.tar.gz && tar -C {{openils_path}}/var/web/js -xzf dojo-release-1.3.3.tar.gz && cp -r {{openils_path}}/var/web/js/dojo-release-1.3.3/* {{openils_path}}/var/web/js/dojo/.
 
   - name: register apache directory non2.4
     set_fact: apache_folder='apache'
@@ -765,7 +765,7 @@
     when: sipgit.stat.isdir is not defined
     become: true
     become_user: opensrf
-    shell: cd /opt && git clone git://git.evergreen-ils.org/SIPServer.git SIPServer
+    shell: cd /opt && git clone -q git://git.evergreen-ils.org/SIPServer.git SIPServer
   - name: Git SIPServer Add working remote
     become: true
     become_user: opensrf
@@ -828,7 +828,7 @@
   - name: Download and make pgtap
     become: true
     become_user: postgres
-    shell:  cd ~/ && wget https://api.pgxn.org/dist/pgtap/1.1.0/pgtap-1.1.0.zip && unzip pgtap-1.1.0.zip && cd pgtap-1.1.0 && make
+    shell:  cd ~/ && wget -q https://api.pgxn.org/dist/pgtap/1.1.0/pgtap-1.1.0.zip && unzip -q pgtap-1.1.0.zip && cd pgtap-1.1.0 && make
     ignore_errors: yes
     when: install_pg_tap|bool == true
   - name: Install pgtap and pg_prove

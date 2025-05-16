@@ -1,10 +1,10 @@
 # Run the build scripts
-apt-get update
+apt-get -qq update
 
 # Install syslog-ng.
-apt-get install -y --no-install-recommends syslog-ng-core
+apt-get -qq install -y --no-install-recommends syslog-ng-core
 
 # Clean up system
-apt-get clean
+apt-get -qq clean
 rm -rf /tmp/* /var/tmp/*
 rm -rf /var/lib/apt/lists/*
