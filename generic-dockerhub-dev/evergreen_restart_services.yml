@@ -533,6 +533,13 @@
   - name: A/T yearly
     cron: user="opensrf" name="A/T yearly" minute="25" hour="3" day="1" month="1" job=". /etc/profile && cd {{openils_path}}/bin/action_trigger_runner.pl --osrf-config {{openils_path}}/conf/opensrf_core.xml --process-hooks --granularity yearly"
 
+  - name: Make cron work in docker
+    lineinfile:
+      dest: /etc/pam.d/cron
+      state: present
+      regexp: 'session[\s|\t]+required[\s|\t]+pam_loginuid\.so'
+      line: "#session    required     pam_loginuid.so"
+
   - name: Delete watch.LOCK
     become: true
     ignore_errors: yes
@@ -597,7 +604,7 @@
     copy:
       owner: opensrf
       group: opensrf
-      mode: a+x
+      mode: a+rw
       dest: /home/opensrf/repos/Evergreen/db_control.txt
       content: |
           evergreen standard *
