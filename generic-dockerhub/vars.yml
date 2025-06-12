@@ -5,7 +5,7 @@
 # NOTE: xenial is not supported due to the nodejs stack issues, but left here for reference in case you want to hack it
 # Evergreen didn't support ubuntu bionic until version 3.3
   ubuntu_version: jammy
-  evergreen_version: 3.14.0
+  evergreen_version: 3.15.1
 # This is tempermental. If you turn this setting on, you might end up having to manually edit the resulting installation
 # Particularly eg_vhost.conf
   add_evergreen_language_support: no
@@ -61,7 +61,16 @@
   opensrf_memcached_server: 127.0.0.1
   opensrf_memcached_port: 11211
   use_custom_opensrf_xml: no
-  Evergreen_cherry_picks: ['0311de0825084499642407f09e08f63a93b46e6f']
+# If you want to enable Anubis, provide the download path to the deb file
+# if blank, it will not be enabled for the install
+  anubis_deb_package: https://github.com/TecharoHQ/anubis/releases/download/v1.19.1/anubis_1.19.1_amd64.deb
+# If you're setting up this container behind a load balancer, you'll need to provide
+# a path to a centrally located txt file containing the pre-created key. Generate one like this:
+# openssl rand -hex 32 > /mnt/evergreen/tmp/anubiskey.txt
+  anubis_shared_secret_key_path:
+  anubis_deb_file: "{{ (anubis_deb_package|regex_replace('.*/', '')) }}"
+  anubis_start_cmd: anubis --target "https://localhost:7443" --target-insecure-skip-verify --use-remote-address {% if anubis_shared_secret_key_path| d(False) %}--ed25519-private-key-hex-file {{anubis_shared_secret_key_path}}{% endif %}
+  Evergreen_cherry_picks: []
   OpenSRF_cherry_picks: []
   SIPServer_cherry_picks: []
   install_pg_tap: yes

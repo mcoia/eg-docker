@@ -452,6 +452,30 @@
     become: true
     become_user: opensrf
     shell: '/egconfigs/start_websocketd'
+
+# START Anubis block
+  - block:
+    - name: create Anubis start script
+      file:
+        path: /egconfigs/start_anubis
+        state: touch
+        owner: root
+        group: root
+        mode: '0755'
+    - name: Building /egconfigs/start_anubis 1
+      become: true
+      lineinfile: 'dest=/egconfigs/start_anubis state=present regexp="#!/bin/bas" line="#!/bin/bash"'
+    - name: Building /egconfigs/start_anubis 2
+      become: true
+      lineinfile: 'dest=/egconfigs/start_anubis state=present regexp="anubis" line="{{anubis_start_cmd}} >& /dev/null &"'
+    - name: Starting Anubis
+      become: true
+      shell: '/egconfigs/start_anubis'
+
+    when: anubis_deb_file != 'None'
+    become: true
+# END Anubis block
+
   - name: Concat the Certificates for nginx
     become: true
     shell: cat /etc/apache2/ssl/server.crt > /etc/apache2/ssl/nginx.crt

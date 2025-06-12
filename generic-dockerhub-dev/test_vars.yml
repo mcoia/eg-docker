@@ -197,4 +197,24 @@
       msg: install_pg_tap is undefined
     when: install_pg_tap is not defined
 
+  - name: Test anubis_deb_package
+    fail:
+      msg: anubis_deb_package is undefined
+    when: anubis_deb_package is not defined
+
+  - name: Test anubis_shared_secret_key_path
+    fail:
+      msg: anubis_shared_secret_key_path is undefined
+    when: anubis_shared_secret_key_path is not defined
+
+  - name: Test anubis_deb_file
+    fail:
+      msg: anubis_deb_file is undefined
+    when: anubis_deb_file is not defined
+
+  - name: Test anubis_start_cmd
+    fail:
+      msg: anubis_start_cmd is undefined
+    when: anubis_start_cmd is not defined
+
 ...

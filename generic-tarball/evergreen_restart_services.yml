@@ -326,6 +326,30 @@
     become: true
     become_user: opensrf
     shell: '/egconfigs/start_websocketd'
+
+# START Anubis block
+  - block:
+    - name: create Anubis start script
+      file:
+        path: /egconfigs/start_anubis
+        state: touch
+        owner: root
+        group: root
+        mode: '0755'
+    - name: Building /egconfigs/start_anubis 1
+      become: true
+      lineinfile: 'dest=/egconfigs/start_anubis state=present regexp="#!/bin/bas" line="#!/bin/bash"'
+    - name: Building /egconfigs/start_anubis 2
+      become: true
+      lineinfile: 'dest=/egconfigs/start_anubis state=present regexp="anubis" line="{{anubis_start_cmd}} >& /dev/null &"'
+    - name: Starting Anubis
+      become: true
+      shell: '/egconfigs/start_anubis'
+
+    when: anubis_deb_file != 'None'
+    become: true
+# END Anubis block
+
   - name: Concat the Certificates for nginx
     become: true
     shell: cat /etc/apache2/ssl/server.crt > /etc/apache2/ssl/nginx.crt
@@ -406,6 +430,13 @@
     cron: user="opensrf" name="A/T monthly" minute="20" hour="3" day="1" job=". /etc/profile && cd {{openils_path}}/bin/action_trigger_runner.pl --osrf-config {{openils_path}}/conf/opensrf_core.xml --process-hooks --granularity monthly"
   - name: A/T yearly
     cron: user="opensrf" name="A/T yearly" minute="25" hour="3" day="1" month="1" job=". /etc/profile && cd {{openils_path}}/bin/action_trigger_runner.pl --osrf-config {{openils_path}}/conf/opensrf_core.xml --process-hooks --granularity yearly"
+
+  - name: Make cron work in docker
+    lineinfile:
+      dest: /etc/pam.d/cron
+      state: present
+      regexp: 'session[\s|\t]+required[\s|\t]+pam_loginuid\.so'
+      line: "#session    required     pam_loginuid.so"
 
   - name: Setup ping.txt
     remote_user: opensrf

@@ -11,13 +11,13 @@ EXPOSE 6001
 RUN useradd user -m -s /bin/bash
 RUN useradd opensrf -m -s /bin/bash
 RUN useradd evergreen -m -s /bin/bash
-RUN apt-get -qq update
+RUN apt-get update -qq
 ENV DEBIAN_FRONTEND noninteractive
 ENV TZ=America/New_York
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 RUN apt-get update -qq && apt-get install -qq -y --no-install-recommends apt-utils
 
-RUN apt-get install -qq -y ansible
+RUN apt-get -qq -y install ansible
 RUN mkdir /egconfigs
 ADD vars.yml /egconfigs/vars.yml
 ADD test_vars.yml /egconfigs/test_vars.yml

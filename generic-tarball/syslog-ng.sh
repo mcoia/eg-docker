@@ -5,6 +5,6 @@ apt-get -qq update
 apt-get -qq install -y --no-install-recommends syslog-ng-core
 
 # Clean up system
-apt-get -qq clean
+apt-get clean
 rm -rf /tmp/* /var/tmp/*
 rm -rf /var/lib/apt/lists/*
