@@ -240,7 +240,7 @@
 
   - name: npm build depending on EG version (on local build copy)
     become: true
-    shell: cd /home/opensrf/repos/Evergreen-build/Open-ILS/web/js/ui/default/staff/ && npm run build-prod && rsync -L -a --no-owner --no-perms --size-only /home/opensrf/repos/Evergreen-build/Open-ILS/web/js/ui/default/staff/ /home/opensrf/repos/Evergreen/Open-ILS/web/js/ui/default/staff
+    shell: cd /home/opensrf/repos/Evergreen-build/Open-ILS/web/js/ui/default/staff/ && npm run build-prod ; rsync -L -a --no-owner --no-perms --size-only /home/opensrf/repos/Evergreen-build/Open-ILS/web/js/ui/default/staff/ /home/opensrf/repos/Evergreen/Open-ILS/web/js/ui/default/staff
     when: evergreen_major_version|int > 2 and evergreen_minor_version|int > 0
 
   - name: Opt out of Chrome eg2 testing on EG version 3.4 and above
@@ -806,5 +806,10 @@
       state: link
       src: "/home/opensrf/repos/Evergreen/Open-ILS/src/templates-bootstrap"
       dest: "{{openils_path}}/var/templates-bootstrap"
+
+  - name: Make double sure that the AngularJS node_modules are copied back
+    become: true
+    shell: cp -R /home/opensrf/repos/Evergreen-build/Open-ILS/web/js/ui/default/staff/node_modules /home/opensrf/repos/Evergreen/Open-ILS/web/js/ui/default/staff/
+    when: evergreen_major_version|int > 2 and evergreen_minor_version|int > 0
 
 ...
