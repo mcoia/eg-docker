@@ -423,6 +423,13 @@
     become: true
     become_user: opensrf
     shell: cp {{ openils_path }}/conf/fm_IDL.xml {{ openils_path }}/var/web/reports/fm_IDL.xml
+    when: add_evergreen_language_support|bool == false
+
+  - name: Copy localized fm_IDL
+    become: true
+    shell: cd /home/opensrf/repos/Evergreen/build/i18n && make install && cp /home/opensrf/repos/Evergreen/Open-ILS/web/reports/fm_IDL.xml {{ openils_path }}/var/web/reports/fm_IDL.xml && chown opensrf:opensrf {{ openils_path }}/var/web/reports/fm_IDL.xml
+    when: add_evergreen_language_support|bool == true
+
   - name: Start Web services
     ignore_errors: yes
     become: true
