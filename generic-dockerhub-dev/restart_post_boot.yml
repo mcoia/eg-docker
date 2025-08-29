@@ -126,7 +126,7 @@
 
   - name: Put the localized fm_IDL.xml in reports folder
     become: true
-    shell: cd /home/opensrf/repos/Evergreen/build/i18n && make install && cp /home/opensrf/repos/Evergreen/Open-ILS/web/reports/fm_IDL.xml {{ openils_path }}/var/web/reports/fm_IDL.xml && chown opensrf:opensrf {{ openils_path }}/var/web/reports/fm_IDL.xml && cp -R /home/opensrf/repos/Evergreen/Open-ILS/web/opac/locale {{ openils_path }}/var/web/opac/
+    shell: cd /home/opensrf/repos/Evergreen/build/i18n && make newpot install && cp /home/opensrf/repos/Evergreen/Open-ILS/web/reports/fm_IDL.xml {{ openils_path }}/var/web/reports/fm_IDL.xml && chown opensrf:opensrf {{ openils_path }}/var/web/reports/fm_IDL.xml && cp -R /home/opensrf/repos/Evergreen/Open-ILS/web/opac/locale {{ openils_path }}/var/web/opac/
     when: add_evergreen_language_support|bool == true
 
   - name: Autoreconf
