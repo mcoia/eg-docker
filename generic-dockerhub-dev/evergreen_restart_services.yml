@@ -597,6 +597,9 @@
                   if test -f "$CHECKFILE"; then
                       rm $CHECKFILE
                       x=$(( $x + 100 ))
+                      rsync -L -a --delete --no-owner --no-perms --size-only --exclude "node_modules" /home/opensrf/repos/Evergreen/Open-ILS/web/js/ui/ /home/opensrf/repos/Evergreen-build/Open-ILS/web/js/ui
+                      cd /home/opensrf/repos/Evergreen-build/Open-ILS/web/js/ui/default/staff && yes | npm install && yes | npm ci && npm run build-prod &> "$CHECKFILE"_screenoutput
+                      rsync -L -a --delete --no-owner --no-perms --size-only /home/opensrf/repos/Evergreen-build/Open-ILS/web/js/ui/ {{openils_path}}/var/web/js/ui
                       rsync -L -a --delete --no-owner --no-perms --size-only --exclude "node_modules" /home/opensrf/repos/Evergreen/Open-ILS/src/eg2/ /home/opensrf/repos/Evergreen-build/Open-ILS/src/eg2
                       cd /home/opensrf/repos/Evergreen-build/Open-ILS/src/eg2
                       PATH=/usr/local/bin:$PATH
@@ -669,29 +672,6 @@
     when: ubuntu_version|lower == 'jammy'
 
 ## now, we need to make symlinks back to the Evergreen repository folder
-## {{openils_path}}/var/web/js/ui/default
-  - name: Check {{openils_path}}/var/web/js/ui/default folder for existing symlink
-    become: true
-    stat:
-      path: "{{openils_path}}/var/web/js/ui/default"
-    register: symcheck
-  - name: Delete {{openils_path}}/var/web/js/ui/default if it's not a symlink
-    become: true
-    ignore_errors: yes
-    file:
-      path: "{{openils_path}}/var/web/js/ui/default"
-      state: absent
-    when: symcheck is defined and (symcheck.stat.islnk is not defined or symcheck.stat.islnk == false)
-  - name: Create {{openils_path}}/var/web/js/ui/default Symlink
-    become: true
-    become_user: opensrf
-    ignore_errors: yes
-    file:
-      force: yes
-      state: link
-      src: "/home/opensrf/repos/Evergreen/Open-ILS/web/js/ui/default"
-      dest: "{{openils_path}}/var/web/js/ui/default"
-
 ## {{openils_path}}/var/web/eg2
   - name: Check {{openils_path}}/var/web/eg2 folder for existing symlink
     become: true
@@ -813,10 +793,5 @@
       state: link
       src: "/home/opensrf/repos/Evergreen/Open-ILS/src/templates-bootstrap"
       dest: "{{openils_path}}/var/templates-bootstrap"
-
-  - name: Make double sure that the AngularJS node_modules are copied back
-    become: true
-    shell: cp -R /home/opensrf/repos/Evergreen-build/Open-ILS/web/js/ui/default/staff/node_modules /home/opensrf/repos/Evergreen/Open-ILS/web/js/ui/default/staff/
-    when: evergreen_major_version|int > 2 and evergreen_minor_version|int > 0
 
 ...
