@@ -276,6 +276,10 @@
     shell: cd /home/opensrf/repos/Evergreen-build && make install && chown -R opensrf:opensrf {{openils_path}}
     when: install_xul_client|bool == false
 
+  - name: Put opensrf.xml.example in place
+    become: true
+    shell: cat {{openils_path}}/conf/opensrf.xml.example > {{openils_path}}/conf/opensrf.xml
+
 ### Setup EG concerto database
   - name: Setup concerto database
     become: true
