@@ -84,7 +84,7 @@
     become_user: opensrf
     environment:
       MOZ_HEADLESS: 1
-    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/src/eg2 && ng e2e
+    shell: cd /home/opensrf/repos/Evergreen/Open-ILS/src/eg2 && npx ng e2e
     ignore_errors: true
     tags: angular,angular-e2e
   - name: Test | Run OPAC js unit tests

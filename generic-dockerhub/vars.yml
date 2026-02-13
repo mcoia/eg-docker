@@ -20,7 +20,7 @@
   postgres_version: "{% if evergreen_major_version|int == 3 and evergreen_minor_version|int > 13 %}15{% elif ubuntu_version|lower == 'jammy' or ubuntu_version|lower == 'focal' %}10{% elif ubuntu_version|lower == 'bionic' %}9.6{% else %}9.5{% endif %}"
   websocketd_version: 0.3.0
   websocketd_filename: "websocketd-{{ websocketd_version }}-linux_{% if ansible_architecture == 'aarch64' %}arm64{% else %}amd64{% endif %}.zip"
-  angular_build_command: "ng build {% if (evergreen_major_version|int == 3 and evergreen_minor_version|int < 9) %}--prod{% else %}--configuration=production{% endif %}"
+  angular_build_command: "npx ng build {% if (evergreen_major_version|int == 3 and evergreen_minor_version|int < 9) %}--prod{% else %}--configuration=production{% endif %}"
 
 # The latest version of OpenSRF seems to work with all versions of Evergreen.
   opensrf_git_branch: osrf_rel_3_3_2
