@@ -607,7 +607,7 @@
                       rsync -L -a --delete --no-owner --no-perms --size-only --exclude "node_modules" /home/opensrf/repos/Evergreen/Open-ILS/src/eg2/ /home/opensrf/repos/Evergreen-build/Open-ILS/src/eg2
                       cd /home/opensrf/repos/Evergreen-build/Open-ILS/src/eg2
                       PATH=/usr/local/bin:$PATH
-                      NODE_OPTIONS=--max-old-space-size=3072 ng build --configuration=production &> "$CHECKFILE"_screenoutput
+                      NODE_OPTIONS=--max-old-space-size=3072 npx ng build --configuration=production &> "$CHECKFILE"_screenoutput
                   fi
 
                   CHECKFILE=/home/opensrf/repos/Evergreen/eg_restart_go
