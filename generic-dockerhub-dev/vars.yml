@@ -5,7 +5,7 @@
 # NOTE: xenial is not supported due to the nodejs stack issues, but left here for reference in case you want to hack it
 # Evergreen didn't support ubuntu bionic until version 3.3
   ubuntu_version: jammy
-  evergreen_version: 3.13.4
+  evergreen_version: 3.16.1
 # This is tempermental. If you turn this setting on, you might end up having to manually edit the resulting installation
 # Particularly eg_vhost.conf
   add_evergreen_language_support: no
@@ -58,6 +58,10 @@
   opensrf_memcached_server: 127.0.0.1
   opensrf_memcached_port: 11211
   use_custom_opensrf_xml: no
+# Set this variable if you want Evergreen to build a bit faster
+# But without CPAN Perl test phases.
+# Reduces the build time by roughly 5 minutes
+  cpan_build_option: NO_CPAN_TEST=1
 # If you want to enable Anubis, provide the download path to the deb file
 # if blank, it will not be enabled for the install
   anubis_deb_package:

@@ -260,54 +260,54 @@
 
   - name: Setup Evergreen prerequisites 1
     become: true
-    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}
+    shell: cd /home/opensrf/repos/Evergreen && {{ cpan_build_option }} make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}
     when: switch_to_newer_version is defined
   - name: Setup Evergreen prerequisites 2nd trip through 1
     become: true
-    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}
+    shell: cd /home/opensrf/repos/Evergreen && {{ cpan_build_option }} make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}
     when: switch_to_newer_version is defined
   - name: Setup Evergreen developer packages 1
     become: true
-    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}-developer
+    shell: cd /home/opensrf/repos/Evergreen && {{ cpan_build_option }} make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}-developer
     when: switch_to_newer_version is defined
   - name: Setup Evergreen translator packages 1
     become: true
-    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}-translator
+    shell: cd /home/opensrf/repos/Evergreen && {{ cpan_build_option }} make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}-translator
     when: switch_to_newer_version is defined
   - name: Setup Evergreen Postgres packages
     become: true
-    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install postgres-server-ubuntu-{{ ubuntu_version }}
+    shell: cd /home/opensrf/repos/Evergreen && {{ cpan_build_option }} make -f Open-ILS/src/extras/Makefile.install postgres-server-ubuntu-{{ ubuntu_version }}
     when: switch_to_newer_version is defined
 
   - name: Setup Evergreen prerequisites 2
     become: true
-    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}
+    shell: cd /home/opensrf/repos/Evergreen && {{ cpan_build_option }} make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}
     when: switch_to_newer_version is not defined
 
   - name: Setup Evergreen prerequisites 2nd trip through 2
     become: true
-    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}
+    shell: cd /home/opensrf/repos/Evergreen && {{ cpan_build_option }} make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}
     when: switch_to_newer_version is not defined
 
   - name: Setup Evergreen developer packages 2
     become: true
-    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}-developer
+    shell: cd /home/opensrf/repos/Evergreen && {{ cpan_build_option }} make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}-developer
     when: switch_to_newer_version is not defined
 
   - name: Setup Evergreen translator packages 2
     become: true
-    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}-translator
+    shell: cd /home/opensrf/repos/Evergreen && {{ cpan_build_option }} make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}-translator
     when: switch_to_newer_version is not defined
 
 ## Install Database
   - name: Setup Evergreen Postgres packages postgres-server-ubuntu-{{ ubuntu_version }}-{{ postgres_version }}
     become: true
-    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install postgres-server-ubuntu-{{ ubuntu_version }}-{{ postgres_version }}
+    shell: cd /home/opensrf/repos/Evergreen && {{ cpan_build_option }} make -f Open-ILS/src/extras/Makefile.install postgres-server-ubuntu-{{ ubuntu_version }}-{{ postgres_version }}
     when: postgres_version|int > 9.6
 
   - name: Setup Evergreen Postgres packages postgres-server-ubuntu-{{ ubuntu_version }}
     become: true
-    shell: cd /home/opensrf/repos/Evergreen && make -f Open-ILS/src/extras/Makefile.install postgres-server-ubuntu-{{ ubuntu_version }}
+    shell: cd /home/opensrf/repos/Evergreen && {{ cpan_build_option }} make -f Open-ILS/src/extras/Makefile.install postgres-server-ubuntu-{{ ubuntu_version }}
     when: postgres_version|int < 10 and switch_to_newer_version is not defined
 
   - name: Allow postgres to talk outside

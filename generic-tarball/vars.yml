@@ -62,6 +62,10 @@
   opensrf_memcached_server: 127.0.0.1
   opensrf_memcached_port: 11211
   use_custom_opensrf_xml: no
+# Set this variable if you want Evergreen to build a bit faster
+# But without CPAN Perl test phases.
+# Reduces the build time by roughly 5 minutes
+  cpan_build_option: NO_CPAN_TEST=1
 # If you want to enable Anubis, provide the download path to the deb file
 # if blank, it will not be enabled for the install
   anubis_deb_package: https://github.com/TecharoHQ/anubis/releases/download/v1.19.1/anubis_1.19.1_amd64.deb
