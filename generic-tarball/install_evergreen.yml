@@ -6,6 +6,8 @@
   become_method: sudo
   vars_files:
     - vars.yml
+  environment:
+    NO_CPAN_TEST: 1
   tasks:
   - name: Prints user ansible env
     ansible.builtin.debug:
