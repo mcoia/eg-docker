@@ -296,6 +296,11 @@
     shell: rm -Rf {{openils_path}}/var/web/opac/extras/ac
     when: shared_jackets_folder is defined and (jacketsym.stat.islnk is not defined or jacketsym.stat.islnk == false)
 
+  - name: set password .srfsh.xml
+    become: true
+    become_user: opensrf
+    ignore_errors: yes
+    shell: SRFPASS=`grep "ACL SETUSER opensrf on >"  /openils/conf/redis-accounts.txt | perl -npe 's!ACL SETUSER opensrf on >(.+?)!$1!g;'` ;  sed -i 's/password/'"$SRFPASS"'/g' ~/.srfsh.xml
 
 ## Evergreen services restart
   - name: Disable the default apache sites
