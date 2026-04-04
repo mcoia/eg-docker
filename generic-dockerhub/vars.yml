@@ -63,7 +63,7 @@
   use_custom_opensrf_xml: no
 # If you want to enable Anubis, provide the download path to the deb file
 # if blank, it will not be enabled for the install
-  anubis_deb_package: https://github.com/TecharoHQ/anubis/releases/download/v1.19.1/anubis_1.19.1_amd64.deb
+  anubis_deb_package: "https://github.com/TecharoHQ/anubis/releases/download/v1.19.1/anubis_1.19.1_{% if ansible_architecture == 'aarch64' %}arm64{% else %}amd64{% endif %}.deb"
 # If you're setting up this container behind a load balancer, you'll need to provide
 # a path to a centrally located txt file containing the pre-created key. Generate one like this:
 # openssl rand -hex 32 > /mnt/evergreen/tmp/anubiskey.txt
