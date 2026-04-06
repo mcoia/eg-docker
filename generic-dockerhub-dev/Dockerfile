@@ -26,6 +26,9 @@ RUN cd /egconfigs && ansible-playbook test_vars.yml -v
 RUN apt-get -y install syslog-ng-core sendmail mailutils sendmail-bin logrotate ssh net-tools iputils-ping sudo nano make autoconf libtool git mlocate git-core ntp cron screen rsync curl vim
 RUN if [ $os != "xenial"] ; then dpkg-reconfigure --frontend noninteractive tzdata ; fi
 
+# Apply security patches to base OS packages
+RUN apt-get update -qq && apt-get -y --no-install-recommends dist-upgrade && apt-get clean && rm -rf /var/lib/apt/lists/*
+
 RUN mkdir -p /mnt/evergreen
 
 # Run dockerbase script
