@@ -119,6 +119,8 @@
     shell: cd /home/opensrf/repos/Evergreen/Open-ILS/src/perlmods && make livecheck
     ignore_errors: true
     tags: perl
+    environment:
+      PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
   - name: Test | Run C unit tests
     become: true
     shell: cd /home/opensrf/repos/Evergreen/Open-ILS/src/c-apps && make check
