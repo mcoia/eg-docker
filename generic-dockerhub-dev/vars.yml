@@ -44,6 +44,8 @@
   openils_path: /openils
 
   domain_name: localhost.localdomain.org
+# Update to "no" if you're pointing this container at a non-localhost database
+  database_create: yes
   database_host: localhost
   database_database: evergreen
   database_port: 5432

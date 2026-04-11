@@ -4,6 +4,7 @@ use XML::Simple;
 use Data::Dumper;
 use DBD::Pg;
 use DateTime;
+use File::Path qw( make_path );
 
 our $dbHandler;
 our %dbconf = %{getDBconnects()};
@@ -16,6 +17,7 @@ our $egPath = shift || '/home/opensrf/repos/Evergreen';
 our $dbControlFile = shift || '/home/opensrf/repos/Evergreen/db_control.txt';
 our $egRepoPath = shift || '/home/opensrf/repos/Evergreen-build';
 our $egRestartTriggerFile = '/home/opensrf/repos/Evergreen/eg_restart_go';
+our $egDatabaseDump = '/home/opensrf/repos/Evergreen/docker_database';
 our @currentDBs = ();
 
 printHelp if($egPath eq 'help');
@@ -31,7 +33,7 @@ $ENV{'PGDATABASE'} = $dbconf{"db"};;
 
 execSystemCMD('touch ' . $dbControlFile) if(!(-e $dbControlFile));
 
-parseControlFile($dbControlFile);
+parseControlFile();
 
 getCurrentDatabases();
 
@@ -51,47 +53,89 @@ sub makeControlFileReality {
         my %thisDatabase = %{$_};
         my $exists = 0;
         my $looking = $thisDatabase{'dbname'};
-        foreach(@currentDBs)
-        {
+        foreach(@currentDBs) {
             printOut("database '$looking' exists") if($debug && lc $_ eq lc $looking);
             $exists = 1 if(lc $_ eq lc $looking);
         }
-        if(!$exists)
-        {
-            rsyncEvergreenRepo() if !$synced;
-            $synced = 1;
-            my $type = '--load-all-sample';
-            $type = '--load-concerto-enhanced' if($thisDatabase{'type'} eq 'enhanced');
-            printOut("Creating database '" . $thisDatabase{'dbname'} . "' loaded with: '$type'");
-            populateDBFromCurrentGitBranch($thisDatabase{'dbname'}, 0, $type);
+        if( !$exists || ($thisDatabase{'dump_restore'} && $thisDatabase{'dump_restore'} eq 'restore') ) {
+            if($thisDatabase{'dump_restore'} && $thisDatabase{'dump_restore'} eq 'restore' && -e $egDatabaseDump . "/" . $thisDatabase{'dbname'} . ".dmp" ) {
+                printOut("Creating database '" . $thisDatabase{'dbname'} . "' loaded with restored sql: '$egDatabaseDump/" . $thisDatabase{'dbname'} . ".dmp'");
+                populateDBFromCurrentGitBranch($thisDatabase{'dbname'}, 0, 0, $egDatabaseDump . "/" . $thisDatabase{'dbname'} . ".dmp");
+                reWriteControlFile();
+            }
+            else {
+                rsyncEvergreenRepo() if !$synced;
+                $synced = 1;
+                my $type = '--load-all-sample';
+                $type = '--load-concerto-enhanced' if($thisDatabase{'type'} eq 'enhanced');
+                printOut("Creating database '" . $thisDatabase{'dbname'} . "' loaded with: '$type'");
+                populateDBFromCurrentGitBranch($thisDatabase{'dbname'}, 0, $type);
+            }
         }
     }
 }
 
+sub dumpDatabase {
+    my $dump_db = shift;
+    make_path($egDatabaseDump);
+    my $cmd = "pg_dump -d " . $dump_db . " -Fc -Z 0 --serializable-deferrable > '" . $egDatabaseDump . "/" . $dump_db . ".dmp'";
+    execSystemCMD($cmd);
+}
+
+sub reWriteControlFile {
+    my $fileBuilder = "";
+    foreach(@dbfile) {
+        my %thisDatabase = %{$_};
+        $fileBuilder .= $thisDatabase{'dbname'} . " ";
+        $fileBuilder .= $thisDatabase{'type'} . " ";
+        $fileBuilder .= $thisDatabase{'selected'} . " " if($thisDatabase{'selected'} && $thisDatabase{'selected'} eq '*');
+        $fileBuilder .= "\n";
+    }
+    open(FH, '>', $dbControlFile) or die $!;
+    print FH $fileBuilder;
+    close(FH);
+}
+
 sub parseControlFile {
-    my $file = shift;
-    my @lines = @{readFile($file)};
+    my @lines = @{readFile($dbControlFile)};
     @dbfile = ();
     foreach(@lines) {
         my @splits = split(/[\t\s]+/, $_);
         printOut(Dumper(\@splits)) if $debug;
         # allow the last column to be missing or null
-        if( ($#splits == 2) || ($#splits == 1))
-        {
+        if( ($#splits == 3) || ($#splits == 2) || ($#splits == 1)) {
             my %newob = (
                 'dbname' => lc @splits[0],
                 'type' => lc @splits[1],
                 'selected' => @splits[2],
+                'dump_restore' => @splits[3],
             );
+
+            # Fix column alignment potiential issue
+            if( $newob{'selected'} =~ m/dump|restore/ ) {
+                $newob{'dump_restore'} = $newob{'selected'};
+                $newob{'selected'} = undef;
+            }
+
             # little sanity checking
-            if ($newob{'type'} eq 'standard' || $newob{'type'} eq 'enhanced')
-            {
+            if ($newob{'type'} eq 'standard' || $newob{'type'} eq 'enhanced') {
                 $wantDB = $newob{'dbname'} if(@splits[2] && @splits[2] eq '*');
                 push(@dbfile, \%newob) 
             }
         }
     }
-    printOut(Dumper(\@dbfile) )if $debug;
+    my $dumped = 0;
+    foreach(@dbfile) {
+        my %thisDatabase = %{$_};
+        if( $thisDatabase{'dump_restore'} && $thisDatabase{'dump_restore'} eq "dump" ) {
+            dumpDatabase( $thisDatabase{'dbname'} );
+            $dumped = 1;
+        }
+    }
+    reWriteControlFile() if( $dumped );
+    parseControlFile() if( $dumped );
+
+    printOut( Dumper(\@dbfile) ) if $debug;
 }
 
 sub readFile {
@@ -130,6 +174,7 @@ sub populateDBFromCurrentGitBranch {
     my $db                 = shift;
     my $doConfig           = shift;
     my $dbLoadSwitch       = shift;
+    my $restoreFrom        = shift;
     my $eg_db_config_stock = "Open-ILS/src/support-scripts/eg_db_config.in";
     my $eg_db_config_temp  = "Open-ILS/src/support-scripts/eg_db_config";
     my $eg_config_stock    = "Open-ILS/src/extras/eg_config.in";
@@ -137,17 +182,19 @@ sub populateDBFromCurrentGitBranch {
     fix_eg_config( $egRepoPath . "/$eg_db_config_stock", $egRepoPath . "/$eg_db_config_temp" );
     fix_eg_config( $egRepoPath . "/$eg_config_stock",    $egRepoPath . "/$eg_config_temp" );
     my $exec = "cd '$egRepoPath' && perl '$eg_db_config_temp'";
-    $exec .= " --create-database --create-schema" if($dbLoadSwitch);
+    $exec .= " --create-database" if( $dbLoadSwitch || $restoreFrom );
+    $exec .= " --create-schema" if($dbLoadSwitch);
     $exec .= " --user " . $dbconf{"dbuser"};
     $exec .= " --password " . $dbconf{"dbpass"};
     $exec .= " --hostname " . $dbconf{"dbhost"};
     $exec .= " --port " . $dbconf{"port"};
     $exec .= " --database $db";
-    $exec .= " --admin-user admin";
-    $exec .= " --admin-pass demo123";
+    $exec .= " --admin-user admin --admin-pass demo123" if($dbLoadSwitch);
     $exec .= " --service all --update-config" if($doConfig);
     $exec .= " $dbLoadSwitch" if($dbLoadSwitch);
     execSystemCMD($exec);
+    execSystemCMD("pg_restore -c -d $db '$restoreFrom'") if($restoreFrom);
+
 }
 
 sub fix_eg_config {
@@ -244,8 +291,7 @@ sub getCurrentDatabases {
     shift @lines;
     # last row is summary
     pop @lines;
-    foreach(@lines)
-    {
+    foreach(@lines) {
         my @cols = split(/\|/, $_);
         # first column is the database name
         my $database = shift @cols;
@@ -267,29 +313,24 @@ sub printOut {
 sub makeEvenWidth {
     my $ret;
 
-    if($#_ != 1)
-    {
+    if($#_ != 1) {
         return;
     }
     $line = shift;
     $width = shift;
     $ret=$line;
-    if(length($line)>=$width)
-    {
+    if(length($line)>=$width) {
         $ret=substr($ret,0,$width);
     }
-    else
-    {
-        while(length($ret)<$width)
-        {
+    else {
+        while(length($ret)<$width) {
             $ret=$ret." ";
         }
     }
     return $ret;
 }
 
-sub getDBconnects
-{
+sub getDBconnects {
     my $openilsfile = shift || '/openils/conf/opensrf.xml';
     my $xml = new XML::Simple;
     my $data = $xml->XMLin($openilsfile);
