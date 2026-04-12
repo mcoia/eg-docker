@@ -286,6 +286,11 @@
     shell: cd /home/opensrf/repos/Evergreen-build && perl Open-ILS/src/support-scripts/eg_db_config --update-config --service all --create-database --create-schema --create-offline --user {{ database_user }} --password {{ database_password }} --hostname {{ database_host }} --port {{ database_port }} --database {{ database_database }} --admin-user {{ evergreen_global_admin }} --admin-pass {{ evergreen_global_admin_password }} --load-all-sample
     when: database_create|bool == true
 
+  - name: Setup config when we want to use non-localhost database
+    become: true
+    shell: cd /home/opensrf/repos/Evergreen-build && perl Open-ILS/src/support-scripts/eg_db_config --update-config --service all --user {{ database_user }} --password {{ database_password }} --hostname {{ database_host }} --port {{ database_port }} --database {{ database_database }} 
+    when: database_create|bool == false
+
   - name: Check jacket's ac folder for existing symlink
     become: true
     stat:
