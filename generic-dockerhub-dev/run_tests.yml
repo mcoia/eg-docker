@@ -38,6 +38,16 @@
       src: /usr/bin/firefox-nightly
       dest: /usr/bin/firefox
     tags: angularjs,angular,angular-unit,angular-e2e,opac
+  - name: Setup | Rsync eg2 to the build directory
+    shell: rsync -L -a --delete --no-owner --no-perms --size-only --exclude "node_modules" /home/opensrf/repos/Evergreen/Open-ILS/src/eg2/ /home/opensrf/repos/Evergreen-build/Open-ILS/src/eg2
+    tags: angular,angular-unit
+  - name: Setup | Opt out of Chrome eg2 testing
+    lineinfile:
+      dest: /home/opensrf/repos/Evergreen-build/Open-ILS/src/eg2/karma.conf.js
+      state: present
+      regexp: ChromeHeadless
+      line: "    browsers: ['FirefoxHeadless'],"
+    tags: angular,angular-unit
   - name: Setup | Give evergreen user access to opensrf directories
     user:
       name: evergreen

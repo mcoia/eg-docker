@@ -402,14 +402,6 @@
     shell: cd /home/opensrf/repos/Evergreen/Open-ILS/web/js/ui/default/staff/ && yes | npm run build-prod
     when: evergreen_major_version|int > 2 and evergreen_minor_version|int > 0
 
-  - name: Opt out of Chrome eg2 testing on EG version 3.4 and above
-    lineinfile:
-      dest: /home/opensrf/repos/Evergreen/Open-ILS/src/eg2/karma.conf.js
-      state: present
-      regexp: ChromeHeadless
-      line: "    browsers: ['FirefoxHeadless'],"
-    when: evergreen_major_version|int > 2 and evergreen_minor_version|int > 3
-
   - name: Add locale picker to Angular client
     lineinfile:
       dest: /home/opensrf/repos/Evergreen/Open-ILS/src/eg2/src/environments/{{item}}
