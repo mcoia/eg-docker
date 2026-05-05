@@ -134,10 +134,11 @@
 ## Get any changes to the install dependencies
   - name: Copy Makefile.install /home/opensrf/repos/Evergreen/Open-ILS/src/extras/Makefile.install -> /home/opensrf/repos/Evergreen-build/Open-ILS/src/extras/Makefile.install
     ignore_errors: yes
-    src: /home/opensrf/repos/Evergreen/Open-ILS/src/extras/Makefile.install
-    dest: /home/opensrf/repos/Evergreen-build/Open-ILS/src/extras/Makefile.install
-    owner: root
-    mode: 0644
+    copy:
+      src: /home/opensrf/repos/Evergreen/Open-ILS/src/extras/Makefile.install
+      dest: /home/opensrf/repos/Evergreen-build/Open-ILS/src/extras/Makefile.install
+      owner: root
+      mode: 0644
 
 ## reinstall Evergreen from locally provided bind mounted Evergreen folder
   - name: Running autoreconf on the git repo
