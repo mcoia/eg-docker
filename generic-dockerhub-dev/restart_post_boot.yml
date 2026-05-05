@@ -8,11 +8,9 @@
     - vars.yml
   tasks:
   - name: Remove ping.txt file
-    become: true
     file: path="{{openils_path}}/var/web/ping.txt" state=absent
   - name: Stop Web services
     ignore_errors: yes
-    become: true
     service:
       name: apache2
       state: stopped
@@ -23,16 +21,13 @@
     when: ubuntu_version|lower == 'jammy'
 
   - name: Kill z39.50
-    become: true
     ignore_errors: yes
     shell: ps aux | grep simple[2]zoom | awk '{print $2}' | xargs kill
   - name: Stop Websocketd
-    become: true
     ignore_errors: yes
     shell: "/bin/ps -ef | /bin/grep osrf-websocket-stdio | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9"
   - name: Stop nginx Websockets proxy
     ignore_errors: yes
-    become: true
     service:
       name: nginx
       state: stopped
@@ -60,7 +55,6 @@
     ignore_errors: yes
     shell: /bin/ps -ef | /bin/grep -i sip | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9
   - name: Stop redis-server
-    become: true
     ignore_errors: yes
     service:
       name: redis-server
@@ -70,7 +64,6 @@
     shell: /bin/ps -ef | /bin/grep -i redis | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9
   - name: Start redis-server
     ignore_errors: yes
-    become: true
     service:
       name: redis-server
       state: started
@@ -94,17 +87,14 @@
       path: /home/opensrf/repos/Evergreen-build/Open-ILS/src/perlmods/lib/OpenILS
       state: absent
   - name: rsync /home/opensrf/repos/Evergreen/Open-ILS/src/perlmods/lib/OpenILS -> /home/opensrf/repos/Evergreen-build/Open-ILS/src/perlmods/lib/OpenILS
-    become: true
     ignore_errors: yes
     shell: rsync -a --exclude ".git" --exclude "node_modules" --no-owner --no-perms --size-only --chown 0:0 /home/opensrf/repos/Evergreen/Open-ILS/src/perlmods/lib/OpenILS/ /home/opensrf/repos/Evergreen-build/Open-ILS/src/perlmods/lib/OpenILS
 
   - name: rsync /home/opensrf/repos/Evergreen/Open-ILS/src/c-apps -> /home/opensrf/repos/Evergreen-build/Open-ILS/src/c-apps
-    become: true
     ignore_errors: yes
     shell: rsync -a --exclude "Makefile" --no-owner --no-perms --size-only --chown 0:0 /home/opensrf/repos/Evergreen/Open-ILS/src/c-apps/ /home/opensrf/repos/Evergreen-build/Open-ILS/src/c-apps
 
   - name: Put the fm_IDL.xml in conf folder
-    become: true
     ignore_errors: yes
     copy:
       owner: opensrf
@@ -114,7 +104,6 @@
       dest: /openils/conf/fm_IDL.xml
 
   - name: Put the fm_IDL.xml in reports folder
-    become: true
     ignore_errors: yes
     copy:
       owner: opensrf
@@ -125,21 +114,43 @@
     when: add_evergreen_language_support|bool == false
 
   - name: Put the localized fm_IDL.xml in reports folder
-    become: true
     shell: cd /home/opensrf/repos/Evergreen/build/i18n && make newpot install && cp /home/opensrf/repos/Evergreen/Open-ILS/web/reports/fm_IDL.xml {{ openils_path }}/var/web/reports/fm_IDL.xml && chown opensrf:opensrf {{ openils_path }}/var/web/reports/fm_IDL.xml && cp -R /home/opensrf/repos/Evergreen/Open-ILS/web/opac/locale {{ openils_path }}/var/web/opac/
     when: add_evergreen_language_support|bool == true
 
   - name: Autoreconf
-    become: true
     shell: cd /home/opensrf/repos/Evergreen-build && autoreconf -i
 
   - name: Configuring Evergreen code and make (for perl and C changes)
-    become: true
     shell: cd /home/opensrf/repos/Evergreen-build && PATH={{openils_path}}/bin:$PATH ./configure --prefix={{openils_path}} --sysconfdir={{openils_path}}/conf && make
 
   - name: make install C changes
-    become: true
     shell: cd /home/opensrf/repos/Evergreen-build/Open-ILS/src/c-apps && make install
+
+## Get any changes to the install dependendecies
+  - name: rsync /home/opensrf/repos/Evergreen/Open-ILS/src/extras -> /home/opensrf/repos/Evergreen-build/Open-ILS/src/extras
+    ignore_errors: yes
+    shell: rsync -a --exclude ".git" --exclude "node_modules" --no-owner --no-perms --size-only --chown 0:0 /home/opensrf/repos/Evergreen/Open-ILS/src/extras/ /home/opensrf/repos/Evergreen-build/Open-ILS/src/extras
+
+## Get any changes to the install dependencies
+  - name: Copy Makefile.install /home/opensrf/repos/Evergreen/Open-ILS/src/extras/Makefile.install -> /home/opensrf/repos/Evergreen-build/Open-ILS/src/extras/Makefile.install
+    ignore_errors: yes
+    src: /home/opensrf/repos/Evergreen/Open-ILS/src/extras/Makefile.install
+    dest: /home/opensrf/repos/Evergreen-build/Open-ILS/src/extras/Makefile.install
+    owner: root
+    mode: 0644
+
+## reinstall Evergreen from locally provided bind mounted Evergreen folder
+  - name: Running autoreconf on the git repo
+    shell: cd /home/opensrf/repos/Evergreen-build && autoreconf -i
+
+  - name: Remove node files from disk
+    shell: rm /usr/local/bin/node ; rm /usr/local/bin/npm ; rm /usr/local/bin/npx ; rm -rf /usr/local/lib/node_modules ; rm -rf /usr/local/include/node ; rm -rf /usr/local/share/man/man1/node*
+    ignore_errors: yes
+
+## in case the container was built before the user-provided Evergreen branch, and the newer version of Evergreen has more prereq's
+  - name: Install Node fresh from current Evergreen Developer
+    ignore_errors: yes
+    shell: apt-get update; export PERL_MM_USE_DEFAULT=1; cd /home/opensrf/repos/Evergreen-build && make -f Open-ILS/src/extras/Makefile.install ubuntu-{{ ubuntu_version }}-developer
 
   - name: Start OpenSRF
     become: true
@@ -163,7 +174,6 @@
     shell: "{{openils_path}}/bin/oils_ctl.sh -a start_sip"
 ### ## Start z39.50
   - name: Start z39.50 stuff
-    become: true
     shell: /usr/bin/perl -w /usr/bin/simple2zoom -c {{openils_path}}/conf/dgo.conf -- -f {{openils_path}}/conf/xml2marc-yaz.cfg localhost:2210 localhost.org:210 -v all,sessiondetail,requestdetail,zoom,zoomdetails &
   - name: restarting cron
     ignore_errors: yes
@@ -176,14 +186,12 @@
     when: ubuntu_version|lower == 'jammy'
 
   - name: Start Web services
-    become: true
     ignore_errors: yes
     service:
       name: apache2
       state: started
 
   - name: Start Web services
-    become: true
     ignore_errors: yes
     shell: /etc/init.d/apache2 start
     when: ubuntu_version|lower == 'jammy'
@@ -193,14 +201,12 @@
     become_user: opensrf
     shell: '/egconfigs/start_websocketd'
   - name: Start nginx Websockets proxy
-    become: true
     ignore_errors: yes
     service:
       name: nginx
       state: started
 
   - name: Start nginx Websockets proxy manually
-    become: true
     ignore_errors: yes
     shell: /etc/init.d/nginx start
     when: ubuntu_version|lower == 'jammy'

@@ -57,5 +57,5 @@ ADD restart_post_boot.yml /egconfigs/restart_post_boot.yml
 ADD run_tests.yml /egconfigs/run_tests.yml
 
 RUN cd /egconfigs && ansible-playbook install_evergreen.yml -v && rm -rf /home/opensrf/repos /home/opensrf/*.tar.gz
-ENTRYPOINT cd /egconfigs && ansible-playbook evergreen_restart_services.yml -vvvv && while true; do sleep 1; done
+ENTRYPOINT cd /egconfigs && ansible-playbook evergreen_restart_services.yml && while true; do sleep 1; done
 #ENTRYPOINT while true; do sleep 1; done
