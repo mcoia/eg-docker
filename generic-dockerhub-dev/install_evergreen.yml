@@ -791,22 +791,7 @@
   - name: Correct pg_config link
     shell:  rm /usr/bin/pg_config && ln -s /usr/lib/postgresql/10/bin/pg_config /usr/bin/pg_config
     ignore_errors: yes
-  - name: Download and make pgtap
-    become_user: postgres
-    shell:  cd ~/ && wget -q https://api.pgxn.org/dist/pgtap/1.1.0/pgtap-1.1.0.zip && unzip -q pgtap-1.1.0.zip && cd pgtap-1.1.0 && make
-    ignore_errors: yes
-    when: install_pg_tap|bool == true
-  - name: Install pgtap and pg_prove
-    shell: cd ~postgres/pgtap-1.1.0 && make install && cpan TAP::Parser::SourceHandler::pgTAP
-    ignore_errors: yes
-    when: install_pg_tap|bool == true
-    environment:
-      PG_CONFIG: "/usr/lib/postgresql/{{ postgres_version }}/bin/pg_config"
-  - name: Add pgtap extension
-    become_user: postgres
-    shell:  psql evergreen -c "CREATE EXTENSION pgtap;"
-    ignore_errors: yes
-    when: install_pg_tap|bool == true
+
 ### attempt to setup firefox non-snap, to facilitate nightwatch
   - name: Setup firefox keyrings
     ignore_errors: yes

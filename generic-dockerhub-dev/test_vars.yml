@@ -192,11 +192,6 @@
       msg: SIPServer_cherry_picks is undefined
     when: SIPServer_cherry_picks is not defined
 
-  - name: Test install_pg_tap
-    fail:
-      msg: install_pg_tap is undefined
-    when: install_pg_tap is not defined
-
   - name: Test anubis_deb_package
     fail:
       msg: anubis_deb_package is undefined
