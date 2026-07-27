@@ -50,7 +50,7 @@
     tags: angular,angular-unit
   - name: Setup | Download and make pgtap
     become_user: postgres
-    shell:  cd ~postgres && wget -q https://api.pgxn.org/dist/pgtap/1.3.4/pgtap-1.3.4.zip && unzip -oq pgtap-1.3.4.zip && cd pgtap-1.3.4 && make
+    shell:   wget -O /var/lib/postgresql/pgtap.zip -q https://api.pgxn.org/dist/pgtap/1.3.4/pgtap-1.3.4.zip && cd /var/lib/postgresql && unzip -oq /var/lib/postgresql/pgtap.zip && cd /var/lib/postgresql/pgtap-1.3.4 && make
     tags: pgtap
   - name: Setup | Install pgtap and pg_prove
     shell: cd ~postgres/pgtap-1.3.4 && make install && cpan TAP::Parser::SourceHandler::pgTAP
