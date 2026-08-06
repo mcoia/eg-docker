@@ -5,7 +5,7 @@
 # NOTE: xenial is not supported due to the nodejs stack issues, but left here for reference in case you want to hack it
 # Evergreen didn't support ubuntu bionic until version 3.3
   ubuntu_version: jammy
-  evergreen_version: 3.16.6
+  evergreen_version: 3.17.3
 # This is tempermental. If you turn this setting on, you might end up having to manually edit the resulting installation
 # Particularly eg_vhost.conf
   add_evergreen_language_support: no
@@ -63,7 +63,7 @@
   use_custom_opensrf_xml: no
 # If you want to enable Anubis, provide the download path to the deb file
 # if blank, it will not be enabled for the install
-  anubis_deb_package: https://github.com/TecharoHQ/anubis/releases/download/v1.19.1/anubis_1.19.1_amd64.deb
+  anubis_deb_package:
 # If you're setting up this container behind a load balancer, you'll need to provide
 # a path to a centrally located txt file containing the pre-created key. Generate one like this:
 # openssl rand -hex 32 > /mnt/evergreen/tmp/anubiskey.txt
