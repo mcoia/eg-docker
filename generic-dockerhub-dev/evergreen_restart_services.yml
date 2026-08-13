@@ -331,14 +331,18 @@
     environment:
       PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
     shell: export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/osrf_control --localhost --start-all
-  - name: Pausing for OpenSRF to spawn Drones
-    pause: seconds=5
+  - name: Allow OpenSRF to warm up on slower hosts
+    pause: seconds=15
   - name: Run autogen
     become: true
     become_user: opensrf
     environment:
       PATH: "{{ ansible_env.PATH }}:{{openils_path}}/bin"
     shell:  export PATH=$PATH:{{openils_path}}/bin && {{openils_path}}/bin/autogen.sh -u
+    register: autogen_result
+    retries: 6
+    delay: 15
+    until: autogen_result.rc == 0
   - name: Setup Lets encrypt folder link
     become: true
     become_user: opensrf
