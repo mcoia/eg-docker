@@ -98,6 +98,19 @@
     file: "path=/etc/logrotate.d/evergreen state=file mode=0644"
   - name: Fix Logrotate configuration
     lineinfile: "dest=/etc/logrotate.conf state=present regexp='^su root' line='su root adm'"
+  - name: Rotate the Evergreen logs hourly, not just daily
+    # A runaway service can write tens of GB between two daily logrotate runs,
+    # so the size directive in /etc/logrotate.d/evergreen is never consulted in
+    # time. Evaluating it hourly bounds the damage; system logs stay daily.
+    become: true
+    ignore_errors: yes
+    copy:
+      dest: /etc/cron.hourly/logrotate-evergreen
+      mode: '0755'
+      content: |
+        #!/bin/sh
+        exec /usr/sbin/logrotate /etc/logrotate.d/evergreen \
+          --state /var/lib/logrotate/evergreen.status
   - lineinfile: "dest=/etc/sudoers state=present regexp='^%sudo' line='%sudo ALL=(ALL) NOPASSWD: ALL'"
   - file: path=/root/ejabberd.yml state=absent
 ## ejabberd remove and reinstall to get fresh database for current brick name
