@@ -246,6 +246,12 @@
   - name: Configuring Evergreen code and make
     shell: cd /home/opensrf/repos/Evergreen-build && PATH={{openils_path}}/bin:$PATH ./configure --prefix={{openils_path}} --sysconfdir={{openils_path}}/conf && make
 
+  - name: Copy eg_startup into place
+    shell: cp /home/opensrf/repos/Evergreen-build/Open-ILS/examples/apache_24/eg_startup /etc/apache2/eg_startup
+
+  - name: Copy eg_vhost.conf into place
+    shell: cp /home/opensrf/repos/Evergreen-build/Open-ILS/examples/apache_24/eg_vhost_24.conf /etc/apache2/eg_vhost.conf
+
   - name: Install Evergreen without xul for EG 3.3 and above
     shell: cd /home/opensrf/repos/Evergreen-build && make install && chown -R opensrf:opensrf {{openils_path}}
     when: install_xul_client|bool == false
