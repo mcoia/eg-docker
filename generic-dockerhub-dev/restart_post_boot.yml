@@ -123,6 +123,12 @@
   - name: Configuring Evergreen code and make (for perl and C changes)
     shell: cd /home/opensrf/repos/Evergreen-build && PATH={{openils_path}}/bin:$PATH ./configure --prefix={{openils_path}} --sysconfdir={{openils_path}}/conf && make
 
+  - name: Copy eg_startup into place
+    shell: cp /home/opensrf/repos/Evergreen-build/Open-ILS/examples/apache_24/eg_startup /etc/apache2/eg_startup
+
+  - name: Copy eg_vhost.conf into place
+    shell: cp /home/opensrf/repos/Evergreen-build/Open-ILS/examples/apache_24/eg_vhost_24.conf /etc/apache2/eg_vhost.conf
+
   - name: make install C changes
     shell: cd /home/opensrf/repos/Evergreen-build/Open-ILS/src/c-apps && make install
 
