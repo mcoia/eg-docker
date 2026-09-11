@@ -1,5 +1,5 @@
-FROM ubuntu:22.04
-ARG os=jammy
+FROM ubuntu:24.04
+ARG os=noble
 # For reference: xenial = 16.04, bionic = 18.04, focal = 20.04, jammy = 22.04
 
 EXPOSE 22
@@ -23,7 +23,7 @@ ADD vars.yml /egconfigs/vars.yml
 ADD test_vars.yml /egconfigs/test_vars.yml
 RUN cd /egconfigs && ansible-playbook test_vars.yml -v
 
-RUN apt-get -qq -y install syslog-ng-core sendmail mailutils sendmail-bin logrotate ssh net-tools iputils-ping sudo nano make autoconf libtool git mlocate git-core ntp cron screen rsync curl vim
+RUN apt-get -qq -y install syslog-ng-core sendmail mailutils sendmail-bin logrotate ssh net-tools iputils-ping sudo nano make autoconf libtool git git-core ntp cron screen rsync curl vim
 RUN if [ $os != "xenial"] ; then dpkg-reconfigure --frontend noninteractive tzdata ; fi
 
 RUN mkdir -p /mnt/evergreen

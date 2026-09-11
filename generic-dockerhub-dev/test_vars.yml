@@ -52,6 +52,11 @@
       msg: postgres_version is undefined
     when: postgres_version is not defined
 
+  - name: Test pg_hba_auth
+    fail:
+      msg: pg_hba_auth is undefined
+    when: pg_hba_auth is not defined
+
   - name: Test websocketd_version
     fail:
       msg: websocketd_version is undefined

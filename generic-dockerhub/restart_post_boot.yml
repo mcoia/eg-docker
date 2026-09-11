@@ -9,16 +9,11 @@
   tasks:
   - name: Remove ping.txt file
     file: path="{{openils_path}}/var/web/ping.txt" state=absent
-  - name: Stop Web services
-    ignore_errors: yes
-    service:
-      name: apache2
-      state: stopped
+
 # service module is broken for ansible/jammy/docker
   - name: Stopping apache2 manually
     ignore_errors: yes
     shell: /etc/init.d/apache2 stop
-    when: ubuntu_version|lower == 'jammy'
 
   - name: Kill z39.50
     ignore_errors: yes
@@ -26,16 +21,12 @@
   - name: Stop Websocketd
     ignore_errors: yes
     shell: "/bin/ps -ef | /bin/grep osrf-websocket-stdio | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9"
-  - name: Stop nginx Websockets proxy
-    ignore_errors: yes
-    service:
-      name: nginx
-      state: stopped
+
 # service module is broken for ansible/jammy/docker
   - name: Starting nginx manually
     ignore_errors: yes
     shell: /etc/init.d/nginx stop
-    when: ubuntu_version|lower == 'jammy'
+
   - name: Stop OpenSRF
     become: true
     become_user: opensrf
@@ -54,24 +45,16 @@
   - name: Kill SIP
     ignore_errors: yes
     shell: /bin/ps -ef | /bin/grep -i sip | /bin/grep -v apache | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9
-  - name: Stop ejabberd
-    ignore_errors: yes
-    service:
-      name: ejabberd
-      state: stopped
+
   - name: Kill ejabberd
     ignore_errors: yes
     shell: /bin/ps -ef | /bin/grep -i ejabberd | /bin/grep -v grep | /usr/bin/awk '{print $2}' | /usr/bin/xargs sudo kill -9
-  - name: Start ejabberd
-    ignore_errors: yes
-    service:
-      name: ejabberd
-      state: started
+
 # service module is broken for ansible/jammy/docker
   - name: Starting ejabberd manually
     ignore_errors: yes
     shell: /etc/init.d/ejabberd start
-    when: ubuntu_version|lower == 'jammy'
+
   - name: Pausing for ejabberd to start
     pause: seconds=10
   - name: Start OpenSRF
@@ -97,52 +80,28 @@
 ### ## Start z39.50
   - name: Start z39.50 stuff
     shell: /usr/bin/perl -w /usr/bin/simple2zoom -c {{openils_path}}/conf/dgo.conf -- -f {{openils_path}}/conf/xml2marc-yaz.cfg localhost:2210 localhost.org:210 -v all,sessiondetail,requestdetail,zoom,zoomdetails &
-  - name: restarting cron
-    ignore_errors: yes
-    service:
-      name: cron
-      state: restarted
+
   - name: restarting cron
     ignore_errors: yes
     shell: /etc/init.d/cron stop
-    when: ubuntu_version|lower == 'jammy'
-
-  - name: Start Web services
-    ignore_errors: yes
-    service:
-      name: apache2
-      state: started
 
   - name: Start Web services
     ignore_errors: yes
     shell: /etc/init.d/apache2 start
-    when: ubuntu_version|lower == 'jammy'
 
   - name: Starting websocketd
     become: true
     become_user: opensrf
     shell: '/egconfigs/start_websocketd'
-  - name: Start nginx Websockets proxy
-    ignore_errors: yes
-    service:
-      name: nginx
-      state: started
 
   - name: Start nginx Websockets proxy manually
     ignore_errors: yes
     shell: /etc/init.d/nginx start
-    when: ubuntu_version|lower == 'jammy'
 
-  - name: starting cron
-    ignore_errors: yes
-    service:
-      name: cron
-      state: started
 # service module is broken for ansible/jammy/docker
   - name: Starting cron manually
     ignore_errors: yes
     shell: /etc/init.d/cron restart
-    when: ubuntu_version|lower == 'jammy'
 
   - name: Setup ping.txt
     remote_user: opensrf
