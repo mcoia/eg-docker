@@ -102,6 +102,8 @@ If you find that this build won't finish. Then you need to break the process dow
 
 - Watch and see where it errors out, and track down that command in the ansible script. Make tweaks and try again.
 
+One tip: you may also need to pass `--security-opt seccomp=unconfined` to the build command.
+
 
 Everything in this repository is open and free to use under the GNU.
 

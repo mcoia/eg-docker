@@ -78,9 +78,11 @@
     file:
       path: /home/opensrf/repos/Evergreen-build
       state: directory
+      owner: opensrf
+      group: opensrf
   - name: rsync /home/opensrf/repos/Evergreen -> /home/opensrf/repos/Evergreen-build
     ignore_errors: yes
-    shell: rsync -a --exclude ".git" --exclude "node_modules" --no-owner --no-perms --size-only --chown 0:0 /home/opensrf/repos/Evergreen/ /home/opensrf/repos/Evergreen-build
+    shell: rsync -a --exclude ".git" --exclude "node_modules" --no-owner --no-perms --size-only --chown opensrf:opensrf /home/opensrf/repos/Evergreen/ /home/opensrf/repos/Evergreen-build
 
 ### Fix a couple of files that should have been symlinks
   - name: Fix symlinks
