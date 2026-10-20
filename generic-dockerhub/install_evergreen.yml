@@ -555,7 +555,7 @@
   - lineinfile:
       dest: /etc/apache2/eg_vhost.conf
       insertafter: . sample staff-specific translation files
-      line: PerlAddVar OILSWebLocale "/openils/var/data/locale/staff/fr-CA.po"
+      line: PerlAddVar OILSWebLocale "{{openils_path}}/var/data/locale/staff/fr-CA.po"
     when: add_evergreen_language_support|bool == true
 
   - lineinfile:

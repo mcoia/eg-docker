@@ -245,7 +245,7 @@
     become: true
     become_user: opensrf
     ignore_errors: yes
-    shell: SRFPASS=`grep "ACL SETUSER opensrf on >"  /openils/conf/redis-accounts.txt | perl -npe 's!ACL SETUSER opensrf on >(.+?)!$1!g;'` ;  sed -i 's/password/'"$SRFPASS"'/g' ~/.srfsh.xml
+    shell: SRFPASS=`grep "ACL SETUSER opensrf on >"  {{openils_path}}/conf/redis-accounts.txt | perl -npe 's!ACL SETUSER opensrf on >(.+?)!$1!g;'` ;  sed -i 's/password/'"$SRFPASS"'/g' ~/.srfsh.xml
 
 ## Evergreen services restart
   - name: Disable the default apache sites

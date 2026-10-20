@@ -84,7 +84,7 @@
       group: opensrf
       mode: 0644
       src: /home/opensrf/repos/Evergreen/Open-ILS/examples/fm_IDL.xml
-      dest: /openils/conf/fm_IDL.xml
+      dest: "{{openils_path}}/conf/fm_IDL.xml"
 
   - name: Put the fm_IDL.xml in reports folder
     ignore_errors: yes
@@ -93,7 +93,7 @@
       group: opensrf
       mode: 0644
       src: /home/opensrf/repos/Evergreen/Open-ILS/examples/fm_IDL.xml
-      dest: /openils/var/web/reports/fm_IDL.xml
+      dest: "{{openils_path}}/var/web/reports/fm_IDL.xml"
     when: add_evergreen_language_support|bool == false
 
   - name: Put the localized fm_IDL.xml in reports folder
