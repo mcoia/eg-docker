@@ -78,9 +78,11 @@
     file:
       path: /home/opensrf/repos/Evergreen-build
       state: directory
+      owner: opensrf
+      group: opensrf
   - name: rsync /home/opensrf/repos/Evergreen -> /home/opensrf/repos/Evergreen-build
     ignore_errors: yes
-    shell: rsync -a --exclude ".git" --exclude "node_modules" --no-owner --no-perms --size-only --chown 0:0 /home/opensrf/repos/Evergreen/ /home/opensrf/repos/Evergreen-build
+    shell: rsync -a --exclude ".git" --exclude "node_modules" --no-owner --no-perms --size-only --chown opensrf:opensrf /home/opensrf/repos/Evergreen/ /home/opensrf/repos/Evergreen-build
 
 ### Fix a couple of files that should have been symlinks
   - name: Fix symlinks
@@ -106,7 +108,7 @@
 ## Get any changes to the install dependencies
   - name: rsync /home/opensrf/repos/Evergreen/Open-ILS/src/extras -> /home/opensrf/repos/Evergreen-build/Open-ILS/src/extras
     ignore_errors: yes
-    shell: rsync -a --exclude ".git" --exclude "node_modules" --no-owner --no-perms --size-only --chown 0:0 /home/opensrf/repos/Evergreen/Open-ILS/src/extras/ /home/opensrf/repos/Evergreen-build/Open-ILS/src/extras
+    shell: rsync -a --exclude ".git" --exclude "node_modules" --no-owner --no-perms --size-only --chown opensrf:opensrf /home/opensrf/repos/Evergreen/Open-ILS/src/extras/ /home/opensrf/repos/Evergreen-build/Open-ILS/src/extras
 
 ## Get any changes to the install dependendecies
   - name: Copy Makefile.install /home/opensrf/repos/Evergreen/Open-ILS/src/extras/Makefile.install -> /home/opensrf/repos/Evergreen-build/Open-ILS/src/extras/Makefile.install
@@ -492,13 +494,14 @@
                   if test -f "$CHECKFILE"; then
                       rm $CHECKFILE
                       x=$(( $x + 100 ))
-                      rsync -L -a --delete --no-owner --no-perms --size-only --exclude "node_modules" /home/opensrf/repos/Evergreen/Open-ILS/web/js/ui/ /home/opensrf/repos/Evergreen-build/Open-ILS/web/js/ui
+                      rsync -L -a --delete --no-owner --no-perms --size-only --exclude "node_modules" --chown opensrf:opensrf /home/opensrf/repos/Evergreen/Open-ILS/web/js/ui/ /home/opensrf/repos/Evergreen-build/Open-ILS/web/js/ui
                       cd /home/opensrf/repos/Evergreen-build/Open-ILS/web/js/ui/default/staff && yes | npm install && yes | npm ci && npm run build-prod &> "$CHECKFILE"_screenoutput
                       rsync -L -a --delete --no-owner --no-perms --size-only /home/opensrf/repos/Evergreen-build/Open-ILS/web/js/ui/ {{openils_path}}/var/web/js/ui
-                      rsync -L -a --delete --no-owner --no-perms --size-only --exclude "node_modules" /home/opensrf/repos/Evergreen/Open-ILS/src/eg2/ /home/opensrf/repos/Evergreen-build/Open-ILS/src/eg2
+                      rsync -L -a --delete --no-owner --no-perms --size-only --exclude "node_modules" --chown opensrf:opensrf /home/opensrf/repos/Evergreen/Open-ILS/src/eg2/ /home/opensrf/repos/Evergreen-build/Open-ILS/src/eg2
                       cd /home/opensrf/repos/Evergreen-build/Open-ILS/src/eg2
                       PATH=/usr/local/bin:$PATH
                       NODE_OPTIONS=--max-old-space-size=3072 npx ng build --configuration=production &> "$CHECKFILE"_screenoutput
+                      chown opensrf:opensrf -R /home/opensrf/repos/Evergreen-build/Open-ILS/web/eg2
                   fi
 
                   CHECKFILE=/home/opensrf/repos/Evergreen/eg_restart_go
